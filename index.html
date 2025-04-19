@@ -44,6 +44,9 @@
         camera.keysRight.push(68); // D
         camera.speed = 0.3;
 
+        // Deadzone threshold
+        const DEADZONE = 0.1;
+
         // Gamepad support
         let gamepadManager = new BABYLON.GamepadManager();
         gamepadManager.onGamepadConnectedObservable.add((gamepad) => {
@@ -52,6 +55,10 @@
             scene.onBeforeRenderObservable.add(() => {
                 let leftStickX = gamepad.leftStick.x;
                 let leftStickY = gamepad.leftStick.y;
+
+                // Apply deadzone
+                leftStickX = Math.abs(leftStickX) > DEADZONE ? leftStickX : 0;
+                leftStickY = Math.abs(leftStickY) > DEADZONE ? leftStickY : 0;
 
                 camera.cameraDirection.x += leftStickX * 0.3;
                 camera.cameraDirection.z += leftStickY * 0.3;
