@@ -92,10 +92,17 @@
                     const forwardDirection = camera.getForwardVector();
                     const rightDirection = camera.getRightVector();
 
+                    // Normalize directions
+                    forwardDirection.y = 0;
+                    rightDirection.y = 0;
+                    forwardDirection.normalize();
+                    rightDirection.normalize();
+
+                    // Move the player relative to the camera's orientation
                     moveDirection.x = leftThumbX * moveSpeed;
                     moveDirection.z = leftThumbY * moveSpeed;
 
-                    // Apply the movement relative to the camera
+                    // Apply the movement relative to the camera's orientation
                     player.position.x += moveDirection.x * forwardDirection.x + moveDirection.z * rightDirection.x;
                     player.position.z += moveDirection.x * forwardDirection.z + moveDirection.z * rightDirection.z;
 
