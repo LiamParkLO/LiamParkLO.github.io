@@ -33,11 +33,11 @@
             camera.attachControl(canvas, true);
 
             // Camera limits to prevent flipping/zoom abuse
-            camera.lowerRadiusLimit = 0.5;
+            camera.lowerRadiusLimit = 2;              // <-- Updated limit here
             camera.upperRadiusLimit = 20;
-            camera.wheelDeltaPercentage = 0.01; // smooth zoom
+            camera.wheelDeltaPercentage = 0.01;
             camera.lowerBetaLimit = 0.1;
-            camera.upperBetaLimit = Math.PI - 0.1; // Prevents full vertical flip
+            camera.upperBetaLimit = Math.PI - 0.1;
 
             const light = new BABYLON.HemisphericLight("light",
                 new BABYLON.Vector3(1, 1, 0), scene);
