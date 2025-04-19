@@ -38,7 +38,7 @@
         camera.keysDown.push(83);  // S
         camera.keysLeft.push(65);  // A
         camera.keysRight.push(68); // D
-        camera.speed = 0.075;      // 75% slower
+        camera.speed = 0.075;
 
         const DEADZONE = 0.3;
 
@@ -74,8 +74,8 @@
                 ry = Math.abs(ry) > DEADZONE ? ry : 0;
 
                 if (rx !== 0 || ry !== 0) {
-                    camera.rotation.y -= rx * 0.05; // Yaw
-                    camera.rotation.x -= ry * 0.05; // Pitch
+                    camera.rotation.y += -rx * 0.05; // Yaw (horizontal)
+                    camera.rotation.x += -ry * 0.05; // Pitch (vertical)
                 }
             });
         });
