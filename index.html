@@ -21,75 +21,72 @@
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <canvas id="renderCanvas"></canvas>
     <script>
-    const canvas = document.getElementById("renderCanvas");
-    const engine = new BABYLON.Engine(canvas, true);
-    const scene = new BABYLON.Scene(engine);
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true);
+        const scene = new BABYLON.Scene(engine);
 
-    const box = BABYLON.MeshBuilder.CreateBox("box", { size: 2 }, scene);
-    box.position.y = 1;
+        const box = BABYLON.MeshBuilder.CreateBox("box", { size: 2 }, scene);
+        box.position.y = 1;
 
-    const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+        const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
 
-    const camera = new BABYLON.UniversalCamera("camera", new BABYLON.Vector3(0, 5, -10), scene);
-    camera.setTarget(box.position);
-    camera.attachControl(canvas, true);
+        const camera = new BABYLON.UniversalCamera("camera", new BABYLON.Vector3(0, 5, -10), scene);
+        camera.setTarget(box.position);
+        camera.attachControl(canvas, true);
 
-    camera.keysUp.push(87);    // W
-    camera.keysDown.push(83);  // S
-    camera.keysLeft.push(65);  // A
-    camera.keysRight.push(68); // D
-    camera.speed = 0.075;      // 75% slower movement
+        camera.keysUp.push(87);    // W
+        camera.keysDown.push(83);  // S
+        camera.keysLeft.push(65);  // A
+        camera.keysRight.push(68); // D
+        camera.speed = 0.075;      // 75% slower
 
-    const DEADZONE = 0.3;
+        const DEADZONE = 0.3;
 
-    let gamepadManager = new BABYLON.GamepadManager();
-    gamepadManager.onGamepadConnectedObservable.add((gamepad) => {
-        if (gamepad.type === BABYLON.Gamepad.POSE_ENABLED) return;
+        let gamepadManager = new BABYLON.GamepadManager();
+        gamepadManager.onGamepadConnectedObservable.add((gamepad) => {
+            if (gamepad.type === BABYLON.Gamepad.POSE_ENABLED) return;
 
-        scene.onBeforeRenderObservable.add(() => {
-            // LEFT STICK: Movement
-            let lx = gamepad.leftStick.x;
-            let ly = gamepad.leftStick.y;
+            scene.onBeforeRenderObservable.add(() => {
+                // LEFT STICK: Movement
+                let lx = gamepad.leftStick.x;
+                let ly = gamepad.leftStick.y;
 
-            lx = Math.abs(lx) > DEADZONE ? lx : 0;
-            ly = Math.abs(ly) > DEADZONE ? -ly : 0; // Invert ly for forward movement
+                lx = Math.abs(lx) > DEADZONE ? lx : 0;
+                ly = Math.abs(ly) > DEADZONE ? -ly : 0; // Invert Y
 
-            if (lx !== 0 || ly !== 0) {
-                let forward = camera.getDirection(BABYLON.Axis.Z);
-                let right = camera.getDirection(BABYLON.Axis.X);
-                forward.y = 0;
-                right.y = 0;
-                forward.normalize();
-                right.normalize();
+                if (lx !== 0 || ly !== 0) {
+                    let forward = camera.getDirection(BABYLON.Axis.Z);
+                    let right = camera.getDirection(BABYLON.Axis.X);
+                    forward.y = 0;
+                    right.y = 0;
+                    forward.normalize();
+                    right.normalize();
 
-                const move = forward.scale(ly).add(right.scale(lx));
-                camera.cameraDirection.addInPlace(move.scale(0.075)); // adjusted speed
-            }
+                    const move = forward.scale(ly).add(right.scale(lx));
+                    camera.cameraDirection.addInPlace(move.scale(0.075));
+                }
 
-            // RIGHT STICK: Camera rotation
-            let rx = gamepad.rightStick.x;
-            let ry = gamepad.rightStick.y;
+                // RIGHT STICK: Camera rotation
+                let rx = gamepad.rightStick.x;
+                let ry = gamepad.rightStick.y;
 
-            rx = Math.abs(rx) > DEADZONE ? rx : 0;
-            ry = Math.abs(ry) > DEADZONE ? ry : 0;
+                rx = Math.abs(rx) > DEADZONE ? rx : 0;
+                ry = Math.abs(ry) > DEADZONE ? ry : 0;
 
-            if (rx !== 0 || ry !== 0) {
-                camera.rotation.y -= rx * 0.05; // Yaw
-                camera.rotation.x -= ry * 0.05; // Pitch
-
-                // Clamp pitch so camera doesn't flip upside down
-                camera.rotation.x = BABYLON.Scalar.Clamp(camera.rotation.x, -Math.PI / 2.5, Math.PI / 2.5);
-            }
+                if (rx !== 0 || ry !== 0) {
+                    camera.rotation.y -= rx * 0.05; // Yaw
+                    camera.rotation.x -= ry * 0.05; // Pitch
+                }
+            });
         });
-    });
 
-    engine.runRenderLoop(() => {
-        scene.render();
-    });
+        engine.runRenderLoop(() => {
+            scene.render();
+        });
 
-    window.addEventListener('resize', () => {
-        engine.resize();
-    });
-</script>
+        window.addEventListener('resize', () => {
+            engine.resize();
+        });
+    </script>
 </body>
 </html>
