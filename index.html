@@ -21,7 +21,7 @@
 
             // Create the player (a simple box)
             const player = BABYLON.MeshBuilder.CreateBox("player", {size: 1}, scene);
-            player.position = new BABYLON.Vector3(0, 0, 0);
+            player.position = new BABYLON.Vector3(0, 1, 0); // Initial position above the ground
             player.checkCollisions = true;
 
             // Enable gravity and collisions
@@ -52,6 +52,7 @@
 
             // Create simple movement and jumping controls
             const moveSpeed = 0.1;
+            const jumpStrength = 2;
             let jumping = false;
             let moveDirection = new BABYLON.Vector3(0, 0, 0);
 
@@ -76,9 +77,6 @@
                     if (Math.abs(leftThumbX) < 0.3) leftThumbX = 0;
                     if (Math.abs(leftThumbY) < 0.3) leftThumbY = 0;
 
-                    moveDirection.x = leftThumbX * moveSpeed;
-                    moveDirection.z = leftThumbY * moveSpeed;
-
                     // Right Thumbstick for camera rotation with deadzone
                     let rightThumbX = gamepad.axes[2]; // Right horizontal axis
                     let rightThumbY = gamepad.axes[3]; // Right vertical axis
@@ -87,14 +85,24 @@
                     if (Math.abs(rightThumbX) < 0.3) rightThumbX = 0;
                     if (Math.abs(rightThumbY) < 0.3) rightThumbY = 0;
 
-                    // Update the camera rotation based on right thumbstick
-                    camera.alpha += rightThumbX * 0.05; // Rotate camera horizontally
-                    camera.beta += rightThumbY * 0.05;  // Rotate camera vertically
+                    // Rotate the player based on the right thumbstick (rotation around Y-axis)
+                    player.rotation.y += rightThumbX * 0.05; // Rotate player horizontally
+
+                    // Calculate movement relative to the camera's orientation
+                    const forwardDirection = camera.getForwardVector();
+                    const rightDirection = camera.getRightVector();
+
+                    moveDirection.x = leftThumbX * moveSpeed;
+                    moveDirection.z = leftThumbY * moveSpeed;
+
+                    // Apply the movement relative to the camera
+                    player.position.x += moveDirection.x * forwardDirection.x + moveDirection.z * rightDirection.x;
+                    player.position.z += moveDirection.x * forwardDirection.z + moveDirection.z * rightDirection.z;
 
                     // A button (for Xbox controller, it's button 0) for jump
                     if (gamepad.buttons[0].pressed && !jumping) { // A button
                         jumping = true;
-                        player.applyImpulse(new BABYLON.Vector3(0, 2, 0), player.getAbsolutePosition());
+                        player.applyImpulse(new BABYLON.Vector3(0, jumpStrength, 0), player.getAbsolutePosition());
                     }
                 }
             };
@@ -103,23 +111,13 @@
             scene.registerBeforeRender(() => {
                 handleGamepadInputs();
 
-                if (!player.intersectsMesh(ground, false) && !player.intersectsMesh(platform, false)) {
-                    if (!jumping) {
-                        player.position.y -= 0.05;
-                    }
-                }
-
                 // Apply gravity
                 if (player.position.y > 0) {
                     player.position.y += scene.gravity.y;
                 } else if (player.position.y <= 0) {
                     jumping = false;
-                    player.position.y = 0;
+                    player.position.y = 0; // Make sure player is on the ground
                 }
-
-                // Move player based on gamepad input
-                player.position.x += moveDirection.x;
-                player.position.z += moveDirection.z;
 
                 // Keep the player within the bounds
                 if (player.position.x > 10) {
