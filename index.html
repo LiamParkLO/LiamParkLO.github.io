@@ -38,7 +38,7 @@
         camera.keysDown.push(83);  // S
         camera.keysLeft.push(65);  // A
         camera.keysRight.push(68); // D
-        camera.speed = 0.075;
+        camera.speed = 0.3;
 
         const DEADZONE = 0.3;
 
@@ -47,35 +47,30 @@
             if (gamepad.type === BABYLON.Gamepad.POSE_ENABLED) return;
 
             scene.onBeforeRenderObservable.add(() => {
-                // LEFT STICK: Movement
                 let lx = gamepad.leftStick.x;
                 let ly = gamepad.leftStick.y;
 
+                // Apply deadzone
                 lx = Math.abs(lx) > DEADZONE ? lx : 0;
-                ly = Math.abs(ly) > DEADZONE ? -ly : 0; // Invert Y
+                ly = Math.abs(ly) > DEADZONE ? ly : 0;
+
+                // Invert ly so up is forward
+                ly = -ly;
 
                 if (lx !== 0 || ly !== 0) {
+                    // Get camera's forward and right directions (flattened)
                     let forward = camera.getDirection(BABYLON.Axis.Z);
                     let right = camera.getDirection(BABYLON.Axis.X);
+
                     forward.y = 0;
                     right.y = 0;
+
                     forward.normalize();
                     right.normalize();
 
+                    // Build movement vector relative to camera
                     const move = forward.scale(ly).add(right.scale(lx));
-                    camera.cameraDirection.addInPlace(move.scale(0.075));
-                }
-
-                // RIGHT STICK: Camera rotation
-                let rx = gamepad.rightStick.x;
-                let ry = gamepad.rightStick.y;
-
-                rx = Math.abs(rx) > DEADZONE ? rx : 0;
-                ry = Math.abs(ry) > DEADZONE ? ry : 0;
-
-                if (rx !== 0 || ry !== 0) {
-                    camera.rotation.y += -rx * 0.05; // Yaw (horizontal)
-                    camera.rotation.x += -ry * 0.05; // Pitch (vertical)
+                    camera.cameraDirection.addInPlace(move.scale(0.3));
                 }
             });
         });
