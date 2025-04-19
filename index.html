@@ -2,16 +2,18 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Babylon.js Cube Scene</title>
+    <title>Babylon.js Cube Scene with Joystick</title>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
     <style>
         html, body {
+            margin: 0;
+            padding: 0;
             overflow: hidden;
             width: 100%;
             height: 100%;
-            margin: 0;
-            padding: 0;
         }
+
         #renderCanvas {
             width: 100%;
             height: 100%;
@@ -32,20 +34,91 @@
             Math.PI / 4, Math.PI / 4, 5, BABYLON.Vector3.Zero(), scene);
         camera.attachControl(canvas, true);
 
-        // Camera limits
+        // Disable panning via 2-finger or right-click drag
+        camera.inputs.attached.pointers.panningSensibility = 0;
+
+        // Zoom and rotation are still enabled
         camera.lowerRadiusLimit = 2;
         camera.upperRadiusLimit = 20;
         camera.wheelDeltaPercentage = 0.01;
         camera.lowerBetaLimit = 0.1;
         camera.upperBetaLimit = Math.PI - 0.1;
 
-        // Disable camera panning (right click or 2-finger drag)
-        camera.inputs.attached.pointers.panningSensibility = 0;
-
-        const light = new BABYLON.HemisphericLight("light",
-            new BABYLON.Vector3(1, 1, 0), scene);
-
+        const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0), scene);
         const box = BABYLON.MeshBuilder.CreateBox("box", { size: 2 }, scene);
+
+        // GUI for joystick
+        const advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+
+        const joystickContainer = new BABYLON.GUI.Ellipse();
+        joystickContainer.width = "120px";
+        joystickContainer.height = "120px";
+        joystickContainer.color = "gray";
+        joystickContainer.thickness = 4;
+        joystickContainer.alpha = 0.5;
+        joystickContainer.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+        joystickContainer.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+        joystickContainer.left = "20px";
+        joystickContainer.top = "-20px";
+        advancedTexture.addControl(joystickContainer);
+
+        const joystickThumb = new BABYLON.GUI.Ellipse();
+        joystickThumb.width = "40px";
+        joystickThumb.height = "40px";
+        joystickThumb.color = "white";
+        joystickThumb.thickness = 2;
+        joystickThumb.background = "white";
+        joystickContainer.addControl(joystickThumb);
+
+        let pointerDown = false;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        joystickThumb.onPointerDownObservable.add((evt, state) => {
+            pointerDown = true;
+        });
+
+        scene.onPointerUp = () => {
+            pointerDown = false;
+            joystickThumb.left = "0px";
+            joystickThumb.top = "0px";
+        };
+
+        scene.onPointerMove = (evt, pickResult) => {
+            if (!pointerDown) return;
+
+            const max = 40; // joystick move limit
+            const rect = canvas.getBoundingClientRect();
+            const centerX = rect.left + 80;
+            const centerY = rect.bottom - 80;
+
+            offsetX = evt.clientX - centerX;
+            offsetY = evt.clientY - centerY;
+
+            const distance = Math.sqrt(offsetX * offsetX + offsetY * offsetY);
+            if (distance > max) {
+                const scale = max / distance;
+                offsetX *= scale;
+                offsetY *= scale;
+            }
+
+            joystickThumb.left = `${offsetX}px`;
+            joystickThumb.top = `${offsetY}px`;
+        };
+
+        scene.onBeforeRenderObservable.add(() => {
+            if (!pointerDown) return;
+
+            const speed = 0.02;
+            const right = camera.getDirection(BABYLON.Axis.X);
+            const forward = camera.getDirection(BABYLON.Axis.Z);
+
+            const moveX = right.scale(offsetX * speed * engine.getDeltaTime() / 1000);
+            const moveZ = forward.scale(offsetY * speed * engine.getDeltaTime() / 1000);
+
+            camera.target.addInPlace(moveX.negate());
+            camera.target.addInPlace(moveZ);
+        });
 
         return scene;
     };
