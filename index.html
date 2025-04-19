@@ -38,7 +38,7 @@
         camera.keysDown.push(83);  // S
         camera.keysLeft.push(65);  // A
         camera.keysRight.push(68); // D
-        camera.speed = 0.3;
+        camera.speed = 0.075;      // Reduced speed by a factor of 4 (0.3 / 4 = 0.075)
 
         const DEADZONE = 0.3;
 
@@ -64,8 +64,9 @@
                     forward.normalize();
                     right.normalize();
 
+                    // Direct movement relative to camera
                     const move = forward.scale(ly).add(right.scale(lx));
-                    camera.cameraDirection.addInPlace(move.scale(0.3));
+                    camera.cameraDirection.addInPlace(move.scale(0.075));  // Reduced speed by 4x
                 }
 
                 // RIGHT STICK: Camera rotation with deadzone
@@ -77,6 +78,7 @@
                 ry = Math.abs(ry) > DEADZONE ? ry : 0;
 
                 if (rx !== 0 || ry !== 0) {
+                    // Direct camera rotation, no easing
                     camera.rotation.y += -rx * 0.05; // Yaw (horizontal)
                     camera.rotation.x += -ry * 0.05; // Pitch (vertical)
                 }
