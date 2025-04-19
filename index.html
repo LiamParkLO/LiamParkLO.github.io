@@ -74,6 +74,7 @@
 
         let dragging = false;
         let panX = 0, panY = 0;
+        let cameraRotationEnabled = true; // Flag to disable camera rotation while joystick is active
 
         thumb.onPointerDownObservable.add(() => {
             dragging = true;
@@ -85,10 +86,14 @@
             panY = 0;
             thumb.left = "0px";
             thumb.top = "0px";
+            cameraRotationEnabled = true; // Re-enable camera rotation after joystick interaction
         };
 
         scene.onPointerMove = (evt) => {
             if (!dragging) return;
+
+            // Prevent camera rotation while dragging joystick
+            cameraRotationEnabled = false;
 
             const max = 40;
             const rect = canvas.getBoundingClientRect();
@@ -109,16 +114,30 @@
             thumb.top = `${panY}px`;
         };
 
+        // Handle camera panning logic
         scene.onBeforeRenderObservable.add(() => {
             if (!dragging) return;
 
             const panSpeed = 0.005;
 
+            // Right and up directions
             const right = camera.getDirection(BABYLON.Axis.X);
             const up = camera.getDirection(BABYLON.Axis.Y);
-            const panVec = right.scale(panX * panSpeed).add(up.scale(-panY * panSpeed));
+            const forward = camera.getDirection(BABYLON.Axis.Z);
 
+            // Map joystick movements to camera's target pan
+            const panVec = right.scale(panX * panSpeed).add(forward.scale(-panY * panSpeed));
+
+            // Move camera's target position
             camera.target.addInPlace(panVec);
+        });
+
+        // Prevent camera rotation if joystick is being used
+        scene.onBeforeRenderObservable.add(() => {
+            if (!cameraRotationEnabled) {
+                camera.alpha = camera.alpha; // Freeze rotation
+                camera.beta = camera.beta;   // Freeze rotation
+            }
         });
 
         return scene;
