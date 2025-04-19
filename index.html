@@ -21,57 +21,58 @@
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <canvas id="renderCanvas"></canvas>
     <script>
-        const canvas = document.getElementById("renderCanvas");
-        const engine = new BABYLON.Engine(canvas, true);
-        const scene = new BABYLON.Scene(engine);
+    	const canvas = document.getElementById("renderCanvas");
+  	    const engine = new BABYLON.Engine(canvas, true);
+  	 const scene = new BABYLON.Scene(engine);
 
-        // Create a box (player or object)
-        const box = BABYLON.MeshBuilder.CreateBox("box", { size: 2 }, scene);
-        box.position.y = 1;
+    const box = BABYLON.MeshBuilder.CreateBox("box", { size: 2 }, scene);
+    box.position.y = 1;
 
-        // Light
-        const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+    const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
 
-        // Universal camera for platformer
-        const camera = new BABYLON.UniversalCamera("camera", new BABYLON.Vector3(0, 5, -10), scene);
-        camera.setTarget(box.position); // follow the box
-        camera.attachControl(canvas, true);
+    const camera = new BABYLON.UniversalCamera("camera", new BABYLON.Vector3(0, 5, -10), scene);
+    camera.setTarget(box.position);
+    camera.attachControl(canvas, true);
 
-        // Enable camera movement with keys (WASD)
-        camera.keysUp.push(87);    // W
-        camera.keysDown.push(83);  // S
-        camera.keysLeft.push(65);  // A
-        camera.keysRight.push(68); // D
-        camera.speed = 0.3;
+    camera.keysUp.push(87);    // W
+    camera.keysDown.push(83);  // S
+    camera.keysLeft.push(65);  // A
+    camera.keysRight.push(68); // D
+    camera.speed = 0.3;
 
-        // Deadzone threshold
-        const DEADZONE = 0.1;
+    const DEADZONE = 0.1;
 
-        // Gamepad support
-        let gamepadManager = new BABYLON.GamepadManager();
-        gamepadManager.onGamepadConnectedObservable.add((gamepad) => {
-            if (gamepad.type === BABYLON.Gamepad.POSE_ENABLED) return;
+    let gamepadManager = new BABYLON.GamepadManager();
+    gamepadManager.onGamepadConnectedObservable.add((gamepad) => {
+        if (gamepad.type === BABYLON.Gamepad.POSE_ENABLED) return;
 
-            scene.onBeforeRenderObservable.add(() => {
-                let leftStickX = gamepad.leftStick.x;
-                let leftStickY = gamepad.leftStick.y;
+        scene.onBeforeRenderObservable.add(() => {
+            let lx = gamepad.leftStick.x;
+            let ly = gamepad.leftStick.y;
 
-                // Apply deadzone
-                leftStickX = Math.abs(leftStickX) > DEADZONE ? leftStickX : 0;
-                leftStickY = Math.abs(leftStickY) > DEADZONE ? leftStickY : 0;
+            // Apply deadzone
+            lx = Math.abs(lx) > DEADZONE ? lx : 0;
+            ly = Math.abs(ly) > DEADZONE ? ly : 0;
 
-                camera.cameraDirection.x += leftStickX * 0.3;
-                camera.cameraDirection.z += leftStickY * 0.3;
-            });
+            // Invert Y-axis for forward/backward movement
+            ly = -ly;
+
+            // Only apply movement if input passes deadzone
+            if (lx !== 0 || ly !== 0) {
+                const moveVector = new BABYLON.Vector3(lx, 0, ly);
+                camera.cameraDirection.addInPlace(moveVector.scale(0.3));
+            }
         });
+    });
 
-        engine.runRenderLoop(() => {
-            scene.render();
-        });
+    engine.runRenderLoop(() => {
+        scene.render();
+    });
 
-        window.addEventListener('resize', () => {
-            engine.resize();
-        });
-    </script>
+    window.addEventListener('resize', () => {
+        engine.resize();
+    });
+</script>
+
 </body>
 </html>
