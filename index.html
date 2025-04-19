@@ -38,7 +38,7 @@
         camera.keysDown.push(83);  // S
         camera.keysLeft.push(65);  // A
         camera.keysRight.push(68); // D
-        camera.speed = 0.075;      // Speed divided by 4 (0.3 / 4 = 0.075)
+        camera.speed = 0.3;
 
         const DEADZONE = 0.3;
 
@@ -65,7 +65,7 @@
                     right.normalize();
 
                     const move = forward.scale(ly).add(right.scale(lx));
-                    camera.cameraDirection.addInPlace(move.scale(0.075));  // Reduced speed by 4x
+                    camera.cameraDirection.addInPlace(move.scale(0.3));
                 }
 
                 // RIGHT STICK: Camera rotation with deadzone
