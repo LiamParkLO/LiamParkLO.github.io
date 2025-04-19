@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Babylon.js Cube Scene with Joystick</title>
+    <title>Babylon.js Cube with Joystick Pan</title>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
     <style>
@@ -34,90 +34,91 @@
             Math.PI / 4, Math.PI / 4, 5, BABYLON.Vector3.Zero(), scene);
         camera.attachControl(canvas, true);
 
-        // Disable panning via 2-finger or right-click drag
+        // Disable panning via gestures (2 fingers/right-click)
         camera.inputs.attached.pointers.panningSensibility = 0;
 
-        // Zoom and rotation are still enabled
+        // Limits and controls
         camera.lowerRadiusLimit = 2;
         camera.upperRadiusLimit = 20;
         camera.wheelDeltaPercentage = 0.01;
         camera.lowerBetaLimit = 0.1;
         camera.upperBetaLimit = Math.PI - 0.1;
 
-        const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0), scene);
+        const light = new BABYLON.HemisphericLight("light",
+            new BABYLON.Vector3(1, 1, 0), scene);
+
         const box = BABYLON.MeshBuilder.CreateBox("box", { size: 2 }, scene);
 
         // GUI for joystick
-        const advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+        const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
 
-        const joystickContainer = new BABYLON.GUI.Ellipse();
-        joystickContainer.width = "120px";
-        joystickContainer.height = "120px";
-        joystickContainer.color = "gray";
-        joystickContainer.thickness = 4;
-        joystickContainer.alpha = 0.5;
-        joystickContainer.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-        joystickContainer.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
-        joystickContainer.left = "20px";
-        joystickContainer.top = "-20px";
-        advancedTexture.addControl(joystickContainer);
+        const container = new BABYLON.GUI.Ellipse();
+        container.width = "120px";
+        container.height = "120px";
+        container.color = "gray";
+        container.thickness = 3;
+        container.alpha = 0.4;
+        container.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+        container.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+        container.left = "20px";
+        container.top = "-20px";
+        ui.addControl(container);
 
-        const joystickThumb = new BABYLON.GUI.Ellipse();
-        joystickThumb.width = "40px";
-        joystickThumb.height = "40px";
-        joystickThumb.color = "white";
-        joystickThumb.thickness = 2;
-        joystickThumb.background = "white";
-        joystickContainer.addControl(joystickThumb);
+        const thumb = new BABYLON.GUI.Ellipse();
+        thumb.width = "40px";
+        thumb.height = "40px";
+        thumb.color = "white";
+        thumb.thickness = 2;
+        thumb.background = "white";
+        container.addControl(thumb);
 
-        let pointerDown = false;
-        let offsetX = 0;
-        let offsetY = 0;
+        let dragging = false;
+        let panX = 0, panY = 0;
 
-        joystickThumb.onPointerDownObservable.add((evt, state) => {
-            pointerDown = true;
+        thumb.onPointerDownObservable.add(() => {
+            dragging = true;
         });
 
         scene.onPointerUp = () => {
-            pointerDown = false;
-            joystickThumb.left = "0px";
-            joystickThumb.top = "0px";
+            dragging = false;
+            panX = 0;
+            panY = 0;
+            thumb.left = "0px";
+            thumb.top = "0px";
         };
 
-        scene.onPointerMove = (evt, pickResult) => {
-            if (!pointerDown) return;
+        scene.onPointerMove = (evt) => {
+            if (!dragging) return;
 
-            const max = 40; // joystick move limit
+            const max = 40;
             const rect = canvas.getBoundingClientRect();
             const centerX = rect.left + 80;
             const centerY = rect.bottom - 80;
 
-            offsetX = evt.clientX - centerX;
-            offsetY = evt.clientY - centerY;
+            panX = evt.clientX - centerX;
+            panY = evt.clientY - centerY;
 
-            const distance = Math.sqrt(offsetX * offsetX + offsetY * offsetY);
-            if (distance > max) {
-                const scale = max / distance;
-                offsetX *= scale;
-                offsetY *= scale;
+            const dist = Math.sqrt(panX * panX + panY * panY);
+            if (dist > max) {
+                const scale = max / dist;
+                panX *= scale;
+                panY *= scale;
             }
 
-            joystickThumb.left = `${offsetX}px`;
-            joystickThumb.top = `${offsetY}px`;
+            thumb.left = `${panX}px`;
+            thumb.top = `${panY}px`;
         };
 
         scene.onBeforeRenderObservable.add(() => {
-            if (!pointerDown) return;
+            if (!dragging) return;
 
-            const speed = 0.02;
+            const panSpeed = 0.005;
+
             const right = camera.getDirection(BABYLON.Axis.X);
-            const forward = camera.getDirection(BABYLON.Axis.Z);
+            const up = camera.getDirection(BABYLON.Axis.Y);
+            const panVec = right.scale(panX * panSpeed).add(up.scale(-panY * panSpeed));
 
-            const moveX = right.scale(offsetX * speed * engine.getDeltaTime() / 1000);
-            const moveZ = forward.scale(offsetY * speed * engine.getDeltaTime() / 1000);
-
-            camera.target.addInPlace(moveX.negate());
-            camera.target.addInPlace(moveZ);
+            camera.target.addInPlace(panVec);
         });
 
         return scene;
