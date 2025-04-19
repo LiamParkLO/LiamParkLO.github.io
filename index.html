@@ -1,93 +1,135 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Babylon.js Platformer</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Babylon.js Platformer with Gamepad Support</title>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <style>
-        html, body {
-            overflow: hidden;
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-        }
-        #renderCanvas {
-            width: 100%;
-            height: 100%;
-            touch-action: none;
-        }
+        body { margin: 0; overflow: hidden; }
+        canvas { width: 100%; height: 100% }
     </style>
 </head>
 <body>
-    <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <canvas id="renderCanvas"></canvas>
     <script>
         const canvas = document.getElementById("renderCanvas");
         const engine = new BABYLON.Engine(canvas, true);
-        const scene = new BABYLON.Scene(engine);
 
-        const box = BABYLON.MeshBuilder.CreateBox("box", { size: 2 }, scene);
-        box.position.y = 1;
+        const createScene = () => {
+            const scene = new BABYLON.Scene(engine);
 
-        const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+            // Create a camera
+            const camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 2, Math.PI / 3, 10, BABYLON.Vector3.Zero(), scene);
+            camera.attachControl(canvas, true);
+            
+            // Create a light
+            const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+            
+            // Create the ground
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 20, height: 20}, scene);
+            ground.position.y = -2;
 
-        const camera = new BABYLON.UniversalCamera("camera", new BABYLON.Vector3(0, 5, -10), scene);
-        camera.setTarget(box.position);
-        camera.attachControl(canvas, true);
+            // Create a platform
+            const platform = BABYLON.MeshBuilder.CreateBox("platform", {height: 1, width: 10, depth: 1}, scene);
+            platform.position = new BABYLON.Vector3(0, -1, 0);
+            
+            // Create the player (a simple box)
+            const player = BABYLON.MeshBuilder.CreateBox("player", {size: 1}, scene);
+            player.position = new BABYLON.Vector3(0, 0, 0);
+            player.checkCollisions = true;
 
-        camera.keysUp.push(87);    // W
-        camera.keysDown.push(83);  // S
-        camera.keysLeft.push(65);  // A
-        camera.keysRight.push(68); // D
-        camera.speed = 0.3;
+            // Enable gravity and collisions
+            scene.gravity = new BABYLON.Vector3(0, -0.2, 0);
+            scene.collisionsEnabled = true;
 
-        const DEADZONE = 0.3;
+            // Set the player to collide with the ground and platform
+            player.ellipsoid = new BABYLON.Vector3(0.5, 1, 0.5);
+            player.ellipsoidOffset = new BABYLON.Vector3(0, 0, 0);
+            
+            // Create simple movement and jumping controls
+            const moveSpeed = 0.1;
+            let jumping = false;
+            let moveDirection = new BABYLON.Vector3(0, 0, 0);
 
-        let gamepadManager = new BABYLON.GamepadManager();
-        gamepadManager.onGamepadConnectedObservable.add((gamepad) => {
-            if (gamepad.type === BABYLON.Gamepad.POSE_ENABLED) return;
+            // Gamepad support
+            let gamepad = null;
 
-            scene.onBeforeRenderObservable.add(() => {
-                let lx = gamepad.leftStick.x;
-                let ly = gamepad.leftStick.y;
-
-                // Apply deadzone for left stick movement
-                lx = Math.abs(lx) > DEADZONE ? lx : 0;
-                ly = Math.abs(ly) > DEADZONE ? -ly : 0;  // Invert Y
-
-                if (lx !== 0 || ly !== 0) {
-                    let forward = camera.getDirection(BABYLON.Axis.Z);
-                    let right = camera.getDirection(BABYLON.Axis.X);
-
-                    forward.y = 0;
-                    right.y = 0;
-
-                    forward.normalize();
-                    right.normalize();
-
-                    const move = forward.scale(ly).add(right.scale(lx));
-                    camera.cameraDirection.addInPlace(move.scale(0.3));
+            const handleGamepadInputs = () => {
+                const gamepads = navigator.getGamepads();
+                for (let i = 0; i < gamepads.length; i++) {
+                    if (gamepads[i]) {
+                        gamepad = gamepads[i];
+                        break;
+                    }
                 }
 
-                // RIGHT STICK: Camera rotation with deadzone
-                let rx = gamepad.rightStick.x;
-                let ry = gamepad.rightStick.y;
+                if (gamepad) {
+                    // Left Thumbstick for player movement (X and Y axis)
+                    const leftThumbX = gamepad.axes[0]; // Left horizontal axis
+                    const leftThumbY = gamepad.axes[1]; // Left vertical axis
+                    moveDirection.x = leftThumbX * moveSpeed;
+                    moveDirection.z = leftThumbY * moveSpeed;
 
-                // Apply deadzone for right stick rotation
-                rx = Math.abs(rx) > DEADZONE ? rx : 0;
-                ry = Math.abs(ry) > DEADZONE ? ry : 0;
+                    // Right Thumbstick for camera rotation
+                    const rightThumbX = gamepad.axes[2]; // Right horizontal axis
+                    const rightThumbY = gamepad.axes[3]; // Right vertical axis
+                    camera.alpha += rightThumbX * 0.05; // Rotate camera horizontally
+                    camera.beta += rightThumbY * 0.05;  // Rotate camera vertically
 
-                if (rx !== 0 || ry !== 0) {
-                    camera.rotation.y += -rx * 0.05; // Yaw (horizontal)
-                    camera.rotation.x += -ry * 0.05; // Pitch (vertical)
+                    // A button (for Xbox controller, it's button 0) for jump
+                    if (gamepad.buttons[0].pressed && !jumping) { // A button
+                        jumping = true;
+                        player.applyImpulse(new BABYLON.Vector3(0, 2, 0), player.getAbsolutePosition());
+                    }
+                }
+            };
+
+            // Update the player's position based on inputs
+            scene.registerBeforeRender(() => {
+                handleGamepadInputs();
+
+                if (!player.intersectsMesh(ground, false) && !player.intersectsMesh(platform, false)) {
+                    if (!jumping) {
+                        player.position.y -= 0.05;
+                    }
+                }
+
+                // Apply gravity
+                if (player.position.y > 0) {
+                    player.position.y += scene.gravity.y;
+                } else if (player.position.y <= 0) {
+                    jumping = false;
+                    player.position.y = 0;
+                }
+
+                // Move player based on gamepad input
+                player.position.x += moveDirection.x;
+                player.position.z += moveDirection.z;
+
+                // Keep the player within the bounds
+                if (player.position.x > 10) {
+                    player.position.x = 10;
+                } else if (player.position.x < -10) {
+                    player.position.x = -10;
+                }
+
+                if (player.position.z > 10) {
+                    player.position.z = 10;
+                } else if (player.position.z < -10) {
+                    player.position.z = -10;
                 }
             });
-        });
 
+            return scene;
+        };
+
+        const scene = createScene();
         engine.runRenderLoop(() => {
             scene.render();
         });
 
-        window.addEventListener('resize', () => {
+        window.addEventListener("resize", () => {
             engine.resize();
         });
     </script>
