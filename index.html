@@ -79,6 +79,8 @@
         thumb.onPointerDownObservable.add(() => {
             dragging = true;
             joystickActive = true; // Joystick is active
+            // Lock camera rotation when joystick is being dragged
+            camera.inputs.attached.pointers._onPointerMove = () => {};  // Disable rotation
         });
 
         scene.onPointerUp = () => {
@@ -88,15 +90,12 @@
             panY = 0;
             thumb.left = "0px";
             thumb.top = "0px";
+            // Re-enable camera rotation once joystick interaction ends
+            camera.inputs.attached.pointers._onPointerMove = camera.inputs.attached.pointers._onPointerMove;
         };
 
         scene.onPointerMove = (evt) => {
             if (!dragging) return;
-
-            // Prevent camera rotation when joystick is active
-            if (joystickActive) {
-                camera.inputs.attached.pointers._onPointerMove = () => {}; // Disable camera movement
-            }
 
             const max = 40;
             const rect = canvas.getBoundingClientRect();
@@ -132,13 +131,6 @@
             const panVec = right.scale(panX * panSpeed).add(forward.scale(-panY * panSpeed));
 
             camera.target.addInPlace(panVec);
-        });
-
-        // Reset camera inputs when joystick is inactive
-        scene.onBeforeRenderObservable.add(() => {
-            if (!joystickActive) {
-                camera.inputs.attached.pointers._onPointerMove = camera.inputs.attached.pointers._onPointerMove;
-            }
         });
 
         return scene;
