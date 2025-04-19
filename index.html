@@ -74,26 +74,29 @@
 
         let dragging = false;
         let panX = 0, panY = 0;
-        let cameraRotationEnabled = true; // Flag to disable camera rotation while joystick is active
+        let joystickActive = false;  // Flag to track if joystick is being used
 
         thumb.onPointerDownObservable.add(() => {
             dragging = true;
+            joystickActive = true; // Joystick is active
         });
 
         scene.onPointerUp = () => {
             dragging = false;
+            joystickActive = false; // Joystick is no longer active
             panX = 0;
             panY = 0;
             thumb.left = "0px";
             thumb.top = "0px";
-            cameraRotationEnabled = true; // Re-enable camera rotation after joystick interaction
         };
 
         scene.onPointerMove = (evt) => {
             if (!dragging) return;
 
-            // Prevent camera rotation while dragging joystick
-            cameraRotationEnabled = false;
+            // Prevent camera rotation when joystick is active
+            if (joystickActive) {
+                camera.inputs.attached.pointers._onPointerMove = () => {}; // Disable camera movement
+            }
 
             const max = 40;
             const rect = canvas.getBoundingClientRect();
@@ -114,29 +117,27 @@
             thumb.top = `${panY}px`;
         };
 
-        // Handle camera panning logic
+        // Handle camera panning logic based on joystick movement
         scene.onBeforeRenderObservable.add(() => {
             if (!dragging) return;
 
             const panSpeed = 0.005;
 
-            // Right and up directions
-            const right = camera.getDirection(BABYLON.Axis.X);
-            const up = camera.getDirection(BABYLON.Axis.Y);
-            const forward = camera.getDirection(BABYLON.Axis.Z);
+            // Get directions for camera movement
+            const right = camera.getDirection(BABYLON.Axis.X);  // Left/Right
+            const forward = camera.getDirection(BABYLON.Axis.Z); // Forward/Backward (camera's Z)
 
-            // Map joystick movements to camera's target pan
+            // Apply joystick's X movement to left-right pan (right vector)
+            // Apply joystick's Y movement to forward-backward pan (negative Z vector)
             const panVec = right.scale(panX * panSpeed).add(forward.scale(-panY * panSpeed));
 
-            // Move camera's target position
             camera.target.addInPlace(panVec);
         });
 
-        // Prevent camera rotation if joystick is being used
+        // Reset camera inputs when joystick is inactive
         scene.onBeforeRenderObservable.add(() => {
-            if (!cameraRotationEnabled) {
-                camera.alpha = camera.alpha; // Freeze rotation
-                camera.beta = camera.beta;   // Freeze rotation
+            if (!joystickActive) {
+                camera.inputs.attached.pointers._onPointerMove = camera.inputs.attached.pointers._onPointerMove;
             }
         });
 
