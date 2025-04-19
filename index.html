@@ -21,9 +21,9 @@
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <canvas id="renderCanvas"></canvas>
     <script>
-    	const canvas = document.getElementById("renderCanvas");
-  	    const engine = new BABYLON.Engine(canvas, true);
-  	 const scene = new BABYLON.Scene(engine);
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true);
+    const scene = new BABYLON.Scene(engine);
 
     const box = BABYLON.MeshBuilder.CreateBox("box", { size: 2 }, scene);
     box.position.y = 1;
@@ -40,7 +40,7 @@
     camera.keysRight.push(68); // D
     camera.speed = 0.3;
 
-    const DEADZONE = 0.1;
+    const DEADZONE = 0.3;
 
     let gamepadManager = new BABYLON.GamepadManager();
     gamepadManager.onGamepadConnectedObservable.add((gamepad) => {
@@ -54,13 +54,23 @@
             lx = Math.abs(lx) > DEADZONE ? lx : 0;
             ly = Math.abs(ly) > DEADZONE ? ly : 0;
 
-            // Invert Y-axis for forward/backward movement
+            // Invert ly so up is forward
             ly = -ly;
 
-            // Only apply movement if input passes deadzone
             if (lx !== 0 || ly !== 0) {
-                const moveVector = new BABYLON.Vector3(lx, 0, ly);
-                camera.cameraDirection.addInPlace(moveVector.scale(0.3));
+                // Get camera's forward and right directions (flattened)
+                let forward = camera.getDirection(BABYLON.Axis.Z);
+                let right = camera.getDirection(BABYLON.Axis.X);
+
+                forward.y = 0;
+                right.y = 0;
+
+                forward.normalize();
+                right.normalize();
+
+                // Build movement vector relative to camera
+                const move = forward.scale(ly).add(right.scale(lx));
+                camera.cameraDirection.addInPlace(move.scale(0.3));
             }
         });
     });
@@ -73,6 +83,5 @@
         engine.resize();
     });
 </script>
-
 </body>
 </html>
