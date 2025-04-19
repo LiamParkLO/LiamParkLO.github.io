@@ -50,7 +50,7 @@
             const platform = BABYLON.MeshBuilder.CreateBox("platform", {height: 1, width: 10, depth: 1}, scene);
             platform.position = new BABYLON.Vector3(0, -1, 0);
 
-            // Create simple movement and jumping controls
+            // Movement parameters
             const moveSpeed = 0.1;
             const jumpStrength = 2;
             let jumping = false;
@@ -77,7 +77,7 @@
                     if (Math.abs(leftThumbX) < 0.3) leftThumbX = 0;
                     if (Math.abs(leftThumbY) < 0.3) leftThumbY = 0;
 
-                    // Right Thumbstick for camera rotation with deadzone
+                    // Right Thumbstick for player rotation with deadzone
                     let rightThumbX = gamepad.axes[2]; // Right horizontal axis
                     let rightThumbY = gamepad.axes[3]; // Right vertical axis
 
@@ -86,13 +86,13 @@
                     if (Math.abs(rightThumbY) < 0.3) rightThumbY = 0;
 
                     // Rotate the player based on the right thumbstick (rotation around Y-axis)
-                    player.rotation.y += rightThumbX * 0.05; // Rotate player horizontally
+                    player.rotation.y += rightThumbX * 0.05; // Rotate player horizontally (around Y-axis)
 
                     // Calculate movement relative to the camera's orientation
                     const forwardDirection = camera.getForwardVector();
                     const rightDirection = camera.getRightVector();
 
-                    // Normalize directions
+                    // Normalize directions (remove any vertical component)
                     forwardDirection.y = 0;
                     rightDirection.y = 0;
                     forwardDirection.normalize();
