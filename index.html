@@ -22,42 +22,34 @@
 <body>
     <canvas id="renderCanvas"></canvas>
     <script>
-        // Get the canvas element
         const canvas = document.getElementById("renderCanvas");
-
-        // Create the Babylon engine
         const engine = new BABYLON.Engine(canvas, true);
 
-        // Create the scene
         const createScene = function () {
             const scene = new BABYLON.Scene(engine);
 
-            // Create a camera and attach it to the canvas
-            const camera = new BABYLON.ArcRotateCamera("camera", 
+            const camera = new BABYLON.ArcRotateCamera("camera",
                 Math.PI / 4, Math.PI / 4, 5, BABYLON.Vector3.Zero(), scene);
             camera.attachControl(canvas, true);
 
-            // Add a light
-            const light = new BABYLON.HemisphericLight("light", 
+            // Camera limits to prevent flipping/zoom abuse
+            camera.lowerRadiusLimit = 0.5;
+            camera.upperRadiusLimit = 20;
+            camera.wheelDeltaPercentage = 0.01; // smooth zoom
+            camera.lowerBetaLimit = 0.1;
+            camera.upperBetaLimit = Math.PI - 0.1; // Prevents full vertical flip
+
+            const light = new BABYLON.HemisphericLight("light",
                 new BABYLON.Vector3(1, 1, 0), scene);
 
-            // Create a box (cube)
-            const box = BABYLON.MeshBuilder.CreateBox("box", {size: 2}, scene);
+            const box = BABYLON.MeshBuilder.CreateBox("box", { size: 2 }, scene);
 
             return scene;
         };
 
         const scene = createScene();
-
-        // Run the render loop
-        engine.runRenderLoop(function () {
-            scene.render();
-        });
-
-        // Resize the engine when the window is resized
-        window.addEventListener("resize", function () {
-            engine.resize();
-        });
+        engine.runRenderLoop(() => scene.render());
+        window.addEventListener("resize", () => engine.resize());
     </script>
 </body>
 </html>
