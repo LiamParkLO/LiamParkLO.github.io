@@ -1,3 +1,29 @@
-<div>
-  <script src="https://cdn.htmlgames.com/embed.js?game=SpadesSpiderSolitaire&amp;bgcolor=black"></script>
-</div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Embed</title>
+    <script>
+        window.onload = function() {
+            // Get the URL query parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const gameQuery = urlParams.get('q');
+            
+            // Check if the 'q' parameter is "ssolitaire"
+            if (gameQuery === 'ssolitaire') {
+                // Create the div to embed the game
+                const embedDiv = document.createElement('div');
+                embedDiv.innerHTML = '<script src="https://cdn.htmlgames.com/embed.js?game=SpadesSpiderSolitaire&amp;bgcolor=white"></script>';
+                
+                // Append the div to the body
+                document.body.appendChild(embedDiv);
+            }
+        };
+    </script>
+</head>
+<body>
+    <h1>Game Embed</h1>
+    <p>If the URL query is "q=ssolitaire", the game will be embedded below:</p>
+</body>
+</html>
