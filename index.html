@@ -158,7 +158,11 @@
     // Apply settings when Apply button is clicked
     applyButton.addEventListener("click", () => {
         // Get sensitivity value from slider
-        const sensitivity = parseInt(sensitivitySlider.value);
+        let sensitivity = parseInt(sensitivitySlider.value);
+        
+        // Reversed behavior: Larger slider value means *lower* sensitivity (faster rotation)
+        sensitivity = 10000 - sensitivity; // Reverse the range
+        
         camera.angularSensibilityX = sensitivity;
         camera.angularSensibilityY = sensitivity;
 
