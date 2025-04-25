@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Babylon.js Cube</title>
@@ -33,15 +33,19 @@
 
         const camera = new BABYLON.ArcRotateCamera("camera",
             Math.PI / 4, Math.PI / 4, 5, BABYLON.Vector3.Zero(), scene);
+
+        // Enable free mouse movement for camera rotation (no need to click and hold)
         camera.attachControl(canvas, true);
 
         // Disable panning via gestures (2 fingers/right-click)
         camera.inputs.attached.pointers.panningSensibility = 0;
 
+        // Zoom settings - faster zoom
+        camera.wheelDeltaPercentage = 0.05;  // Make zoom faster
+
         // Limits and controls
         camera.lowerRadiusLimit = 2;
         camera.upperRadiusLimit = 20;
-        camera.wheelDeltaPercentage = 0.01;
         camera.lowerBetaLimit = 0.1;
         camera.upperBetaLimit = Math.PI - 0.1;
 
@@ -56,6 +60,39 @@
     const scene = createScene();
     engine.runRenderLoop(() => scene.render());
     window.addEventListener("resize", () => engine.resize());
+
+    // Prevent the default zoom behavior on the document
+    document.addEventListener("touchstart", (e) => {
+        if (e.touches.length > 1) {  // if two fingers are used for pinch-to-zoom
+            e.preventDefault();  // prevent page zooming
+        }
+    }, { passive: false });
+
+    document.addEventListener("touchmove", (e) => {
+        if (e.touches.length > 1) {  // if two fingers are used for pinch-to-zoom
+            e.preventDefault();  // prevent page zooming
+        }
+    }, { passive: false });
+
+    // Lock mouse to the center of the screen for immersive experience
+    canvas.addEventListener("click", () => {
+        if (!document.pointerLockElement) {
+            canvas.requestPointerLock();
+        }
+    });
+
+    // Ensure the mouse is locked and we can move freely
+    document.addEventListener('pointerlockchange', () => {
+        if (document.pointerLockElement === canvas) {
+            // Pointer lock successful, we can now use mouse to rotate without needing clicks
+            console.log('Mouse is locked to center');
+        }
+    });
+
+    // Ensure the mouse is locked when the pointer lock is lost
+    document.addEventListener('pointerlockerror', () => {
+        console.log('Pointer lock failed');
+    });
 </script>
 </body>
 </html>
