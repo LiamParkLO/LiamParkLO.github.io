@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Babylon.js Cube with Joystick Pan</title>
+    <title>Babylon.js Cube</title>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
     <style>
@@ -48,90 +48,6 @@
             new BABYLON.Vector3(1, 1, 0), scene);
 
         const box = BABYLON.MeshBuilder.CreateBox("box", { size: 2 }, scene);
-
-        // GUI for joystick
-        const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
-
-        const container = new BABYLON.GUI.Ellipse();
-        container.width = "120px";
-        container.height = "120px";
-        container.color = "gray";
-        container.thickness = 3;
-        container.alpha = 0.4;
-        container.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-        container.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
-        container.left = "20px";
-        container.top = "-20px";
-        ui.addControl(container);
-
-        const thumb = new BABYLON.GUI.Ellipse();
-        thumb.width = "40px";
-        thumb.height = "40px";
-        thumb.color = "white";
-        thumb.thickness = 2;
-        thumb.background = "white";
-        container.addControl(thumb);
-
-        let dragging = false;
-        let panX = 0, panY = 0;
-        let joystickActive = false;  // Flag to track if joystick is being used
-
-        thumb.onPointerDownObservable.add(() => {
-            dragging = true;
-            joystickActive = true; // Joystick is active
-            // Lock camera rotation when joystick is being dragged
-            camera.inputs.attached.pointers._onPointerMove = () => {};  // Disable rotation
-        });
-
-        scene.onPointerUp = () => {
-            dragging = false;
-            joystickActive = false; // Joystick is no longer active
-            panX = 0;
-            panY = 0;
-            thumb.left = "0px";
-            thumb.top = "0px";
-            // Re-enable camera rotation once joystick interaction ends
-            camera.inputs.attached.pointers._onPointerMove = camera.inputs.attached.pointers._onPointerMove;
-        };
-
-        scene.onPointerMove = (evt) => {
-            if (!dragging) return;
-
-            const max = 40;
-            const rect = canvas.getBoundingClientRect();
-            const centerX = rect.left + 80;
-            const centerY = rect.bottom - 80;
-
-            panX = evt.clientX - centerX;
-            panY = evt.clientY - centerY;
-
-            const dist = Math.sqrt(panX * panX + panY * panY);
-            if (dist > max) {
-                const scale = max / dist;
-                panX *= scale;
-                panY *= scale;
-            }
-
-            thumb.left = `${panX}px`;
-            thumb.top = `${panY}px`;
-        };
-
-        // Handle camera panning logic based on joystick movement
-        scene.onBeforeRenderObservable.add(() => {
-            if (!dragging) return;
-
-            const panSpeed = 0.005;
-
-            // Get directions for camera movement
-            const right = camera.getDirection(BABYLON.Axis.X);  // Left/Right
-            const forward = camera.getDirection(BABYLON.Axis.Z); // Forward/Backward (camera's Z)
-
-            // Apply joystick's X movement to left-right pan (right vector)
-            // Apply joystick's Y movement to forward-backward pan (negative Z vector)
-            const panVec = right.scale(panX * panSpeed).add(forward.scale(-panY * panSpeed));
-
-            camera.target.addInPlace(panVec);
-        });
 
         return scene;
     };
