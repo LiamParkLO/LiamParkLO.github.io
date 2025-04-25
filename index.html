@@ -34,21 +34,31 @@
         const camera = new BABYLON.ArcRotateCamera("camera",
             Math.PI / 4, Math.PI / 4, 5, BABYLON.Vector3.Zero(), scene);
 
-        // Enable free mouse movement for camera rotation (no need to click and hold)
+        // Attach control without click and hold
         camera.attachControl(canvas, true);
 
-        // Disable panning via gestures (2 fingers/right-click)
-        camera.inputs.attached.pointers.panningSensibility = 0;
-
-        // Zoom settings - faster zoom
+        // Camera zoom settings - faster zoom
         camera.wheelDeltaPercentage = 0.05;  // Make zoom faster
 
-        // Limits and controls
-        camera.lowerRadiusLimit = 2;
-        camera.upperRadiusLimit = 20;
+        // Slow down camera movement (75% slower)
+        camera.angularSensibilityX = 5000; // Horizontal sensitivity (increase to slow down)
+        camera.angularSensibilityY = 5000; // Vertical sensitivity (increase to slow down)
+
+        // Disable inertia to remove smoothing/easing during movement
+        camera.inertia = 0; // This disables the inertia effect
         camera.lowerBetaLimit = 0.1;
         camera.upperBetaLimit = Math.PI - 0.1;
+        camera.lowerRadiusLimit = 2;
+        camera.upperRadiusLimit = 20;
 
+        // Remove any mouse panning effect (if you want free movement without panning)
+        camera.inputs.attached.pointers.panningSensibility = 0;
+
+        // Disable smoothing when zooming
+        camera.pinchPrecision = 100;  // Pinch precision can be adjusted to control zoom responsiveness
+        camera.smoothZoom = false;  // Disable zoom smoothing
+
+        // Lighting and Box for scene
         const light = new BABYLON.HemisphericLight("light",
             new BABYLON.Vector3(1, 1, 0), scene);
 
@@ -84,7 +94,6 @@
     // Ensure the mouse is locked and we can move freely
     document.addEventListener('pointerlockchange', () => {
         if (document.pointerLockElement === canvas) {
-            // Pointer lock successful, we can now use mouse to rotate without needing clicks
             console.log('Mouse is locked to center');
         }
     });
