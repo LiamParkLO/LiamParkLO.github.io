@@ -54,10 +54,6 @@
             margin-bottom: 10px;
         }
 
-        #settingsMenu input[type="range"] {
-            width: 100%;
-        }
-
         #settingsMenu button {
             background-color: #444;
             color: white;
@@ -91,20 +87,14 @@
 <div id="settingsMenu">
     <div class="menuTitle">Settings</div>
 
-    <!-- Sensitivity Slider -->
-    <label for="sensitivitySlider">Rotation Sensitivity</label>
-    <input type="range" id="sensitivitySlider" min="1000" max="10000" value="1667">
-    
     <!-- Invert X Axis -->
     <label>
         <input type="checkbox" id="invertX"> Invert X Axis
-        </input>
     </label>
 
     <!-- Invert Y Axis -->
     <label>
         <input type="checkbox" id="invertY"> Invert Y Axis
-        </input>
     </label>
 
     <!-- Apply button -->
@@ -116,7 +106,6 @@
     const engine = new BABYLON.Engine(canvas, true);
     const settingsButton = document.getElementById("settingsButton");
     const settingsMenu = document.getElementById("settingsMenu");
-    const sensitivitySlider = document.getElementById("sensitivitySlider");
     const invertXToggle = document.getElementById("invertX");
     const invertYToggle = document.getElementById("invertY");
     const applyButton = document.getElementById("applyButton");
@@ -130,9 +119,10 @@
         camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 4, Math.PI / 4, 5, BABYLON.Vector3.Zero(), scene);
         camera.attachControl(canvas, true);
 
-        // Set default camera settings
-        camera.angularSensibilityX = 1667; // Default rotation speed
-        camera.angularSensibilityY = 1667; // Default rotation speed
+        // Set the default camera settings to a fixed value
+        const fixedSensitivity = 1667;
+        camera.angularSensibilityX = fixedSensitivity; // Set X rotation speed
+        camera.angularSensibilityY = fixedSensitivity; // Set Y rotation speed
         camera.inertia = 0;
         camera.lowerBetaLimit = 0.1;
         camera.upperBetaLimit = Math.PI - 0.1;
@@ -157,15 +147,6 @@
 
     // Apply settings when Apply button is clicked
     applyButton.addEventListener("click", () => {
-        // Get sensitivity value from slider
-        let sensitivity = parseInt(sensitivitySlider.value);
-        
-        // Reversed behavior: Larger slider value means *lower* sensitivity (faster rotation)
-        sensitivity = 10000 - sensitivity; // Reverse the range
-        
-        camera.angularSensibilityX = sensitivity;
-        camera.angularSensibilityY = sensitivity;
-
         // Invert X axis if the toggle is checked
         if (invertXToggle.checked) {
             camera.angularSensibilityX *= -1;  // Multiply by -1 to invert the rotation
