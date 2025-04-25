@@ -12,9 +12,15 @@
             
             // Check if the 'q' parameter is "ssolitaire"
             if (gameQuery === 'ssolitaire') {
-                // Create the div to embed the game
+                // Create a new div
                 const embedDiv = document.createElement('div');
-                embedDiv.innerHTML = '<script src="https://cdn.htmlgames.com/embed.js?game=SpadesSpiderSolitaire&amp;bgcolor=white"></script>';
+                
+                // Create a script element
+                const script = document.createElement('script');
+                script.src = "https://cdn.htmlgames.com/embed.js?game=SpadesSpiderSolitaire&bgcolor=white";
+                
+                // Append the script to the div
+                embedDiv.appendChild(script);
                 
                 // Append the div to the body
                 document.body.appendChild(embedDiv);
@@ -23,7 +29,5 @@
     </script>
 </head>
 <body>
-    <h1>Game Embed</h1>
-    <p>If the URL query is "q=ssolitaire", the game will be embedded below:</p>
 </body>
 </html>
