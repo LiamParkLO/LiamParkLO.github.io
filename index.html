@@ -1,9 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
     <title>Babylon.js Cube</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
     <style>
@@ -20,118 +19,76 @@
             height: 100%;
             touch-action: none;
         }
-
-        /* Styles for settings button and menu */
-        #settingsButton {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background-color: #333;
-            color: white;
-            border: none;
-            padding: 10px;
-            font-size: 16px;
-            cursor: pointer;
-            border-radius: 5px;
-            z-index: 10;
-        }
-
-        #settingsMenu {
-            position: absolute;
-            top: 50px;
-            left: 10px;
-            background-color: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 15px;
-            display: none;
-            border-radius: 5px;
-            width: 200px;
-            z-index: 9;
-        }
-
-        #settingsMenu label {
-            display: block;
-            margin-bottom: 10px;
-        }
-
-        #settingsMenu button {
-            background-color: #444;
-            color: white;
-            border: none;
-            padding: 5px;
-            width: 100%;
-            cursor: pointer;
-            border-radius: 3px;
-            margin-top: 10px;
-        }
-
-        #settingsMenu button:active {
-            background-color: #555;
-        }
-
-        #settingsMenu input[type="checkbox"] {
-            margin-right: 5px;
-        }
-
-        #settingsMenu .menuTitle {
-            font-size: 18px;
-            margin-bottom: 15px;
-            text-align: center;
-        }
     </style>
 </head>
 <body>
 <canvas id="renderCanvas"></canvas>
-<button id="settingsButton"><span>&#9881;</span> Settings</button>
-
-<div id="settingsMenu">
-    <div class="menuTitle">Settings</div>
-
-    <!-- Invert X Axis -->
-    <label>
-        <input type="checkbox" id="invertX"> Invert X Axis
-    </label>
-
-    <!-- Invert Y Axis -->
-    <label>
-        <input type="checkbox" id="invertY"> Invert Y Axis
-    </label>
-
-    <!-- Apply button -->
-    <button id="applyButton">Apply</button>
-</div>
-
 <script>
     const canvas = document.getElementById("renderCanvas");
     const engine = new BABYLON.Engine(canvas, true);
-    const settingsButton = document.getElementById("settingsButton");
-    const settingsMenu = document.getElementById("settingsMenu");
-    const invertXToggle = document.getElementById("invertX");
-    const invertYToggle = document.getElementById("invertY");
-    const applyButton = document.getElementById("applyButton");
 
-    let camera;
-
-    // Create the Babylon.js scene
     const createScene = function () {
         const scene = new BABYLON.Scene(engine);
 
-        camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 4, Math.PI / 4, 5, BABYLON.Vector3.Zero(), scene);
-        camera.attachControl(canvas, true);
+        // Lighting
+        const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
 
-        // Set the default camera settings to a fixed value
-        const fixedSensitivity = 1667;
-        camera.angularSensibilityX = fixedSensitivity; // Set X rotation speed
-        camera.angularSensibilityY = fixedSensitivity; // Set Y rotation speed
-        camera.inertia = 0;
-        camera.lowerBetaLimit = 0.1;
-        camera.upperBetaLimit = Math.PI - 0.1;
+        // Box
+        const box = BABYLON.MeshBuilder.CreateBox("box", { size: 2 }, scene);
+        box.position.y = 1; // Lift it above the floor
+
+        // Floor
+        const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 20, height: 20 }, scene);
+
+        // Camera that orbits the box
+        const camera = new BABYLON.ArcRotateCamera("camera",
+            Math.PI / 4, Math.PI / 4, 10, box.position, scene);
+        camera.attachControl(canvas, true);
         camera.lowerRadiusLimit = 2;
         camera.upperRadiusLimit = 20;
+        camera.wheelDeltaPercentage = 0.01;
+        camera.lowerBetaLimit = 0.1;
+        camera.upperBetaLimit = Math.PI - 0.1;
+        camera.inputs.attached.pointers.panningSensibility = 0;
 
-        // Lighting and Box for scene
-        const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0), scene);
-        const box = BABYLON.MeshBuilder.CreateBox("box", { size: 2 }, scene);
+        // Movement
+        const inputMap = {};
+        scene.actionManager = new BABYLON.ActionManager(scene);
+        scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
+            BABYLON.ActionManager.OnKeyDownTrigger, evt => inputMap[evt.sourceEvent.key] = evt.sourceEvent.type === "keydown"));
+        scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(
+            BABYLON.ActionManager.OnKeyUpTrigger, evt => inputMap[evt.sourceEvent.key] = evt.sourceEvent.type === "keydown"));
+
+        scene.onBeforeRenderObservable.add(() => {
+            let speed = 0.1;
+            let forward = new BABYLON.Vector3(
+                Math.sin(camera.alpha),
+                0,
+                Math.cos(camera.alpha)
+            ).normalize();
+
+            let right = new BABYLON.Vector3(
+                Math.sin(camera.alpha + Math.PI / 2),
+                0,
+                Math.cos(camera.alpha + Math.PI / 2)
+            ).normalize();
+
+            if (inputMap["w"]) {
+                box.position.addInPlace(forward.scale(speed));
+            }
+            if (inputMap["s"]) {
+                box.position.addInPlace(forward.scale(-speed));
+            }
+            if (inputMap["a"]) {
+                box.position.addInPlace(right.scale(-speed));
+            }
+            if (inputMap["d"]) {
+                box.position.addInPlace(right.scale(speed));
+            }
+
+            // Update camera to follow the box
+            camera.target = box.position;
+        });
 
         return scene;
     };
@@ -139,59 +96,6 @@
     const scene = createScene();
     engine.runRenderLoop(() => scene.render());
     window.addEventListener("resize", () => engine.resize());
-
-    // Settings menu toggle visibility
-    settingsButton.addEventListener("click", () => {
-        settingsMenu.style.display = (settingsMenu.style.display === "block") ? "none" : "block";
-    });
-
-    // Apply settings when Apply button is clicked
-    applyButton.addEventListener("click", () => {
-        // Invert X axis if the toggle is checked
-        if (invertXToggle.checked) {
-            camera.angularSensibilityX *= -1;  // Multiply by -1 to invert the rotation
-        }
-
-        // Invert Y axis if the toggle is checked
-        if (invertYToggle.checked) {
-            camera.angularSensibilityY *= -1;  // Multiply by -1 to invert the rotation
-        }
-
-        // Close the settings menu
-        settingsMenu.style.display = "none";
-    });
-
-    // Prevent default zoom behavior on the document
-    document.addEventListener("touchstart", (e) => {
-        if (e.touches.length > 1) {  // if two fingers are used for pinch-to-zoom
-            e.preventDefault();  // prevent page zooming
-        }
-    }, { passive: false });
-
-    document.addEventListener("touchmove", (e) => {
-        if (e.touches.length > 1) {  // if two fingers are used for pinch-to-zoom
-            e.preventDefault();  // prevent page zooming
-        }
-    }, { passive: false });
-
-    // Lock mouse to the center of the screen for immersive experience
-    canvas.addEventListener("click", () => {
-        if (!document.pointerLockElement) {
-            canvas.requestPointerLock();
-        }
-    });
-
-    // Ensure the mouse is locked and we can move freely
-    document.addEventListener('pointerlockchange', () => {
-        if (document.pointerLockElement === canvas) {
-            console.log('Mouse is locked to center');
-        }
-    });
-
-    // Ensure the mouse is locked when the pointer lock is lost
-    document.addEventListener('pointerlockerror', () => {
-        console.log('Pointer lock failed');
-    });
 </script>
 </body>
 </html>
