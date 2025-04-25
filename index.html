@@ -20,48 +20,127 @@
             height: 100%;
             touch-action: none;
         }
+
+        /* Styles for settings button and menu */
+        #settingsButton {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: #333;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            z-index: 10;
+        }
+
+        #settingsMenu {
+            position: absolute;
+            top: 50px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px;
+            display: none;
+            border-radius: 5px;
+            width: 200px;
+            z-index: 9;
+        }
+
+        #settingsMenu label {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        #settingsMenu input[type="range"] {
+            width: 100%;
+        }
+
+        #settingsMenu button {
+            background-color: #444;
+            color: white;
+            border: none;
+            padding: 5px;
+            width: 100%;
+            cursor: pointer;
+            border-radius: 3px;
+            margin-top: 10px;
+        }
+
+        #settingsMenu button:active {
+            background-color: #555;
+        }
+
+        #settingsMenu input[type="checkbox"] {
+            margin-right: 5px;
+        }
+
+        #settingsMenu .menuTitle {
+            font-size: 18px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
 <canvas id="renderCanvas"></canvas>
+<button id="settingsButton"><span>&#9881;</span> Settings</button>
+
+<div id="settingsMenu">
+    <div class="menuTitle">Settings</div>
+
+    <!-- Sensitivity Slider -->
+    <label for="sensitivitySlider">Rotation Sensitivity</label>
+    <input type="range" id="sensitivitySlider" min="1000" max="10000" value="1667">
+    
+    <!-- Invert X Axis -->
+    <label>
+        <input type="checkbox" id="invertX"> Invert X Axis
+        </input>
+    </label>
+
+    <!-- Invert Y Axis -->
+    <label>
+        <input type="checkbox" id="invertY"> Invert Y Axis
+        </input>
+    </label>
+
+    <!-- Apply button -->
+    <button id="applyButton">Apply</button>
+</div>
+
 <script>
     const canvas = document.getElementById("renderCanvas");
     const engine = new BABYLON.Engine(canvas, true);
+    const settingsButton = document.getElementById("settingsButton");
+    const settingsMenu = document.getElementById("settingsMenu");
+    const sensitivitySlider = document.getElementById("sensitivitySlider");
+    const invertXToggle = document.getElementById("invertX");
+    const invertYToggle = document.getElementById("invertY");
+    const applyButton = document.getElementById("applyButton");
 
+    let camera;
+
+    // Create the Babylon.js scene
     const createScene = function () {
         const scene = new BABYLON.Scene(engine);
 
-        const camera = new BABYLON.ArcRotateCamera("camera",
-            Math.PI / 4, Math.PI / 4, 5, BABYLON.Vector3.Zero(), scene);
-
-        // Attach control without click and hold
+        camera = new BABYLON.ArcRotateCamera("camera", Math.PI / 4, Math.PI / 4, 5, BABYLON.Vector3.Zero(), scene);
         camera.attachControl(canvas, true);
 
-        // Camera zoom settings - faster zoom
-        camera.wheelDeltaPercentage = 0.05;  // Make zoom faster
-
-        // Slow down camera movement (75% slower)
-        camera.angularSensibilityX = 2500; // Horizontal sensitivity (lower = faster rotation)
-        camera.angularSensibilityY = 2500; // Vertical sensitivity (lower = faster rotation)
-
-        // Disable inertia to remove smoothing/easing during movement
-        camera.inertia = 0; // This disables the inertia effect
+        // Set default camera settings
+        camera.angularSensibilityX = 1667; // Default rotation speed
+        camera.angularSensibilityY = 1667; // Default rotation speed
+        camera.inertia = 0;
         camera.lowerBetaLimit = 0.1;
         camera.upperBetaLimit = Math.PI - 0.1;
         camera.lowerRadiusLimit = 2;
         camera.upperRadiusLimit = 20;
 
-        // Remove any mouse panning effect (if you want free movement without panning)
-        camera.inputs.attached.pointers.panningSensibility = 0;
-
-        // Disable smoothing when zooming
-        camera.pinchPrecision = 100;  // Pinch precision can be adjusted to control zoom responsiveness
-        camera.smoothZoom = false;  // Disable zoom smoothing
-
         // Lighting and Box for scene
-        const light = new BABYLON.HemisphericLight("light",
-            new BABYLON.Vector3(1, 1, 0), scene);
-
+        const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0), scene);
         const box = BABYLON.MeshBuilder.CreateBox("box", { size: 2 }, scene);
 
         return scene;
@@ -71,7 +150,27 @@
     engine.runRenderLoop(() => scene.render());
     window.addEventListener("resize", () => engine.resize());
 
-    // Prevent the default zoom behavior on the document
+    // Settings menu toggle visibility
+    settingsButton.addEventListener("click", () => {
+        settingsMenu.style.display = (settingsMenu.style.display === "block") ? "none" : "block";
+    });
+
+    // Apply settings when Apply button is clicked
+    applyButton.addEventListener("click", () => {
+        // Get sensitivity value from slider
+        const sensitivity = parseInt(sensitivitySlider.value);
+        camera.angularSensibilityX = sensitivity;
+        camera.angularSensibilityY = sensitivity;
+
+        // Invert X and Y axis based on toggle states
+        camera.invertXAxis = invertXToggle.checked;
+        camera.invertYAxis = invertYToggle.checked;
+
+        // Close the settings menu
+        settingsMenu.style.display = "none";
+    });
+
+    // Prevent default zoom behavior on the document
     document.addEventListener("touchstart", (e) => {
         if (e.touches.length > 1) {  // if two fingers are used for pinch-to-zoom
             e.preventDefault();  // prevent page zooming
