@@ -12,12 +12,7 @@
             
             // Check if the 'q' parameter is "ssolitaire"
             if (gameQuery === 'ssolitaire') {
-                // Open a new window named 'Spider Solitaire'
-                const newWindow = window.open('', 'Spider Solitaire', 'width=800,height=600');
-                
-                // Set the document content for the new window
-                newWindow.document.write('<div><script src="https://cdn.htmlgames.com/embed.js?game=SpadesSpiderSolitaire&amp;bgcolor=white"></script></div>');
-                // No document.close(), leaving the window open for further interaction
+                document.write('<div><script src="https://cdn.htmlgames.com/embed.js?game=SpadesSpiderSolitaire&amp;bgcolor=white"></script></div>');
             }
         };
     </script>
