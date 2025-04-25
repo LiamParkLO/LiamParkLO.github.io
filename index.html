@@ -162,9 +162,15 @@
         camera.angularSensibilityX = sensitivity;
         camera.angularSensibilityY = sensitivity;
 
-        // Invert X and Y axis based on toggle states
-        camera.invertXAxis = invertXToggle.checked;
-        camera.invertYAxis = invertYToggle.checked;
+        // Invert X axis if the toggle is checked
+        if (invertXToggle.checked) {
+            camera.angularSensibilityX *= -1;  // Multiply by -1 to invert the rotation
+        }
+
+        // Invert Y axis if the toggle is checked
+        if (invertYToggle.checked) {
+            camera.angularSensibilityY *= -1;  // Multiply by -1 to invert the rotation
+        }
 
         // Close the settings menu
         settingsMenu.style.display = "none";
