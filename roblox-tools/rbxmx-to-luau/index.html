@@ -1,216 +1,165 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>RBXMX to LuaU Converter</title>
-<style>
-  body { font-family: monospace; padding: 20px; background: #222; color: #eee; }
-  #code { width: 100%; height: 300px; margin-top: 10px; background: #111; color: #0f0; border: none; padding: 10px; }
-  #console { display: block; margin-top: 10px; color: #f55; white-space: pre-wrap; }
-  button, input[type="file"] { margin-top: 10px; }
-</style>
+  <title>RBXMX to LuaU Converter</title>
+  <style>
+    body { font-family: sans-serif; padding: 1em; }
+    textarea { width: 100%; height: 300px; margin-top: 1em; }
+    #console { color: red; margin-top: 1em; font-weight: bold; display: block; }
+  </style>
 </head>
 <body>
+  <h1>RBXMX to LuaU Converter</h1>
+  <input type="file" id="file">
+  <button id="convert">Convert</button>
+  <strong id="console"></strong>
+  <textarea id="code" readonly></textarea>
 
-<input type="file" id="file" accept=".rbxmx,.xml" />
-<button id="convert">Convert</button>
-<strong id="console"></strong>
-<textarea id="code" readonly></textarea>
+  <script>
+    const skipProps = [
+      "AttributesSerialize", "Color3uint8", "MaterialColors",
+      "PhysicsGrid", "Tags", "Version", "LinkedSource", "ScriptGuid",
+      "SmoothGrid"
+    ];
 
-<script>
-(() => {
-  const fileInput = document.getElementById('file');
-  const convertBtn = document.getElementById('convert');
-  const consoleEl = document.getElementById('console');
-  const codeEl = document.getElementById('code');
+    const nonCreatable = new Set([
+      "Workspace", "Players", "Lighting", "ReplicatedFirst", "ReplicatedStorage",
+      "ServerScriptService", "ServerStorage", "StarterGui", "StarterPack",
+      "StarterPlayer", "Teams", "SoundService", "Chat", "LocalizationService",
+      "TestService", "RunService", "HttpService", "TweenService", "Terrain",
+      "TextService", "LogService", "InsertService", "ContentProvider",
+      "PathfindingService", "CollectionService", "MemoryStoreService", "MessagingService"
+    ]);
 
-  // Roblox Services list for direct referencing
-  const SERVICES = new Set([
-    'Workspace', 'ServerScriptService', 'ServerStorage', 'StarterPlayer', 'Teams',
-    'ReplicatedFirst', 'ReplicatedStorage', 'StarterPack', 'StarterGui', 'Lighting',
-    'SoundService', 'Chat', 'LocalizationService', 'TestService', 'UserInputService',
-    'HttpService', 'RunService', 'ContextActionService', 'PhysicsService',
-    'CollectionService', 'MessagingService', 'TextService', 'TeleportService',
-    'TweenService', 'GuiService', 'BadgeService', 'InsertService', 'AssetService',
-    'ContentProvider', 'PathfindingService', 'AnalyticsService', 'DataStoreService',
-    'VoiceChatService', 'AccessibilityService'
-  ]);
+    document.getElementById("convert").addEventListener("click", () => {
+      const fileInput = document.getElementById("file");
+      const output = document.getElementById("code");
+      const consoleOut = document.getElementById("console");
+      const file = fileInput.files[0];
 
-  // Properties to skip from serialization
-  const skipProps = new Set([
-    'AttributesSerialize', 'Color3uint8', 'MaterialColors', 'PhysicsGrid', 'SmoothGrid', 'BinaryString'
-  ]);
-
-  // Helper function to escape string literals
-  function escapeString(str) {
-    return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '');
-  }
-
-  // Parse XML string to DOM
-  function parseXML(str) {
-    return new DOMParser().parseFromString(str, 'application/xml');
-  }
-
-  // Convert string to Lua literal
-  function toLuaLiteral(value, type) {
-    if (type === 'bool') return value === 'true' ? 't' : 'f';
-    if (type === 'int' || type === 'float') return value;
-    if (type === 'token') return `"${value}"`;
-    if (type === 'string') return `"${escapeString(value)}"`;
-    if (type === 'UDim2') {
-      const parts = value.split(' ');
-      if (parts.length === 4) return `v3(${parts.join(',')})`;
-    }
-    if (type === 'Vector2') {
-      const parts = value.split(' ');
-      if (parts.length === 2) return `v2(${parts.join(',')})`;
-    }
-    if (type === 'BrickColor') {
-      const num = parseInt(value);
-      if (!isNaN(num) && num >= 1 && num <= 1032) return `v4(${num})`;
-    }
-    if (type === 'CFrame') {
-      const parts = value.trim().split(/\s+/);
-      if (parts.length === 12) return `v5(${parts.join(',')})`;
-      if (parts.length === 3) return `v5(${parts.join(',')})`; // Position only
-    }
-    return `"${escapeString(value)}"`;
-  }
-
-  // Generate Lua code recursively
-  function generateLua(inst, parentName, idx = 1) {
-    const className = inst.getAttribute('class');
-    if (!className) return '';
-
-    if (className === 'undefined') return '';
-
-    // Variable name for instance
-    const varName = `${parentName}${idx}`;
-
-    let code = '';
-
-    // Handle services
-    if (SERVICES.has(className)) {
-      code += `local ${varName} = game:GetService("${className}")\n`;
-    } else if (className === 'Terrain') {
-      // Special case Terrain: direct property assignments, no Instance.new
-      code += `local ${varName} = workspace.Terrain\n`;
-    } else {
-      code += `local ${varName} = v1("${className}")\n`;
-    }
-
-    // Loop through properties
-    for (let prop of inst.children) {
-      if (skipProps.has(prop.tagName)) continue;
-      const propName = prop.tagName;
-      if (propName === 'Properties') continue; // skip wrapper node if any
-
-      // Property type & value node
-      const type = prop.getAttribute('type');
-      const value = prop.textContent || '';
-
-      if (!value) continue;
-      if (propName === 'BinaryString') continue;
-
-      // Fix bug where property tag is same as type or invalid
-      // Use propName as property
-
-      // Convert value to Lua literal based on type
-      const luaValue = toLuaLiteral(value.trim(), type);
-
-      if (luaValue === undefined) continue;
-
-      code += `v6(function() ${varName}.${propName} = ${luaValue} end)\n`;
-    }
-
-    // Recurse children
-    let childIdx = 1;
-    for (let child of inst.children) {
-      if (child.tagName === 'Properties') continue; // skip properties node
-      if (child.tagName === 'BinaryString') continue;
-      if (child.tagName === 'AttributesSerialize') continue;
-
-      // Only consider nodes with 'class' attribute as instances
-      if (child.hasAttribute && child.hasAttribute('class')) {
-        code += generateLua(child, varName, childIdx);
-        code += `v6(function() ${generateAddChild(varName, `${varName}${childIdx}`)} end)\n`;
-        childIdx++;
-      }
-    }
-
-    return code;
-  }
-
-  // Helper to add child: parent.Child = child or parent:AddChild(child)
-  function generateAddChild(parentVar, childVar) {
-    // In Roblox Lua, child.Parent = parent
-    return `${childVar}.Parent = ${parentVar}`;
-  }
-
-  // Main conversion function
-  async function convertFile(file) {
-    consoleEl.textContent = '';
-    codeEl.value = '';
-
-    const text = await file.text();
-    let xmlDoc;
-    try {
-      xmlDoc = parseXML(text);
-      const parseError = xmlDoc.querySelector('parsererror');
-      if (parseError) throw new Error(parseError.textContent);
-    } catch (e) {
-      consoleEl.textContent = 'XML Parse Error: ' + e.message;
-      return;
-    }
-
-    // Root Instance
-    const root = xmlDoc.documentElement;
-    if (!root || root.tagName !== 'roblox') {
-      consoleEl.textContent = 'Invalid RBXMX file: missing <roblox> root';
-      return;
-    }
-
-    // Usually first child is Instance
-    let instanceNode = null;
-    for (const child of root.children) {
-      if (child.tagName === 'Item' && child.getAttribute('class')) {
-        instanceNode = child;
-        break;
-      }
-    }
-    if (!instanceNode) {
-      // fallback to first element with class attribute
-      instanceNode = root.querySelector('[class]');
-      if (!instanceNode) {
-        consoleEl.textContent = 'No instance found in RBXMX';
+      if (!file) {
+        consoleOut.textContent = "No file selected.";
         return;
       }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parser = new DOMParser();
+          const xml = parser.parseFromString(reader.result, "text/xml");
+          const root = xml.querySelector("roblox");
+
+          if (!root) throw new Error("Invalid RBXMX file");
+
+          let result = 'local v1,v2,v3,v4,v5=Instance.new,Vector2.new,UDim2.new,BrickColor.new,CFrame.new\n\n';
+
+          root.querySelectorAll(":scope > Item").forEach(item => {
+            result += walk(item);
+          });
+
+          consoleOut.textContent = "";
+          output.value = result.trim();
+        } catch (err) {
+          consoleOut.textContent = "Error: " + err.message;
+          output.value = "";
+        }
+      };
+
+      reader.onerror = () => {
+        consoleOut.textContent = "Error reading file.";
+        output.value = "";
+      };
+
+      reader.readAsText(file);
+    });
+
+    function walk(item, indent = "") {
+      const className = item.getAttribute("class");
+      const name = sanitizeName(item.getAttribute("name") || "unnamed");
+      let code = "";
+
+      if (className === "Terrain") {
+        code += `${indent}local ${name}=workspace.Terrain\n`;
+      } else if (nonCreatable.has(className)) {
+        code += `${indent}local ${name}=game:GetService("${className}")\n`;
+      } else {
+        code += `${indent}local ${name}=v1("${className}")\n`;
+      }
+
+      const props = Array.from(item.querySelector("Properties")?.children || []);
+      const lines = parseProps(props, name);
+      for (const line of lines) code += `${indent}${line}\n`;
+
+      const children = item.querySelectorAll(":scope > Item");
+      for (const child of children) {
+        code += walk(child, indent);
+        const childName = sanitizeName(child.getAttribute("name") || "unnamed");
+        code += `${indent}pcall(function()${childName}.Parent=${name}end)\n`;
+      }
+
+      return code;
     }
 
-    // Begin code output
-    let output = `local v1,v2,v3,v4,v5,v6,t,f=Instance.new,Vector2.new,UDim2.new,BrickColor.new,CFrame.new,pcall,true,false\n`;
-
-    try {
-      output += generateLua(instanceNode, 'unnamed');
-    } catch (e) {
-      consoleEl.textContent = 'Conversion error: ' + e.message;
-      return;
+    function sanitizeName(name) {
+      return name.replace(/[^a-zA-Z0-9_]/g, "_");
     }
 
-    codeEl.value = output;
-  }
+    function parseProps(props, varName) {
+      const lines = [];
+      for (const prop of props) {
+        const name = prop.getAttribute("name");
+        if (skipProps.includes(name)) continue;
 
-  convertBtn.addEventListener('click', () => {
-    const file = fileInput.files[0];
-    if (!file) {
-      consoleEl.textContent = 'Please select a .rbxmx file first.';
-      return;
+        const text = prop.textContent.trim();
+        switch (prop.tagName) {
+          case "string":
+          case "ProtectedString":
+            lines.push(`pcall(function()${varName}.${name}=${JSON.stringify(text)}end)`);
+            break;
+          case "bool":
+            lines.push(`pcall(function()${varName}.${name}=${text==="true"}end)`);
+            break;
+          case "int":
+          case "float":
+          case "double":
+            lines.push(`pcall(function()${varName}.${name}=${Number(text)}end)`);
+            break;
+          case "Vector2":
+            {
+              const [x2, y2] = text.split(/\s+/).map(Number);
+              lines.push(`pcall(function()${varName}.${name}=v2(${x2},${y2})end)`);
+            }
+            break;
+          case "UDim2":
+            {
+              const [sx, ox, sy, oy] = text.split(/\s+/).map(Number);
+              lines.push(`pcall(function()${varName}.${name}=v3(${sx},${ox},${sy},${oy})end)`);
+            }
+            break;
+          case "BrickColor":
+            lines.push(`pcall(function()${varName}.${name}=v4(${Number(text)})end)`);
+            break;
+          case "CoordinateFrame":
+            {
+              const nums = text.split(/\s+/).map(Number).filter(n => !isNaN(n));
+              if (nums.length >= 3) {
+                lines.push(`pcall(function()${varName}.${name}=v5(${nums.join(",")})end)`);
+              }
+            }
+            break;
+          case "token":
+            lines.push(`pcall(function()${varName}.${name}=${JSON.stringify(text)}end)`);
+            break;
+          case "BinaryString":
+            lines.push(`pcall(function()${varName}.${name}="${text.replace(/[\r\n]+/g,"")}"end)`);
+            break;
+          default:
+            // skip unknown types
+            break;
+        }
+      }
+      return lines;
     }
-    convertFile(file);
-  });
-})();
-</script>
-
+  </script>
 </body>
 </html>
