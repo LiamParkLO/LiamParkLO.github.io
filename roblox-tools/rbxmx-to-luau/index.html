@@ -1,149 +1,140 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>RBXMX to LuaU Converter (No external lib)</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RBXMX to LuaU Converter</title>
+<style>
+  body { font-family: monospace; padding: 20px; }
+  #console { color: red; margin-bottom: 10px; display: block; }
+  #code { width: 100%; height: 300px; }
+</style>
 </head>
 <body>
-  <h1>RBXMX to LuaU Converter</h1>
 
-  <input type="file" id="file" accept=".rbxmx" />
-  <button id="convert">Convert</button>
-  <br /><br />
+<input type="file" id="file" />
+<button id="convert">Convert</button>
+<strong id="console"></strong>
+<textarea id="code" readonly></textarea>
 
-  <strong id="console" style="color: red;"></strong>
-  <br /><br />
+<script>
+document.getElementById("convert").addEventListener("click", async () => {
+  const fileInput = document.getElementById("file");
+  const consoleEl = document.getElementById("console");
+  const codeEl = document.getElementById("code");
+  consoleEl.textContent = "";
+  codeEl.value = "";
 
-  <textarea
-    id="code"
-    rows="20"
-    cols="80"
-    placeholder="Converted LuaU code will appear here..."
-  ></textarea>
+  try {
+    const file = fileInput.files[0];
+    if (!file) throw new Error("No file selected.");
 
-  <script>
-    document.getElementById("convert").addEventListener("click", async () => {
-      const fileInput = document.getElementById("file");
-      const consoleEl = document.getElementById("console");
-      const codeEl = document.getElementById("code");
-      consoleEl.textContent = "";
-      codeEl.value = "";
+    const text = await file.text();
 
-      try {
-        const file = fileInput.files[0];
-        if (!file) throw new Error("No file selected.");
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(text, "application/xml");
 
-        const text = await file.text();
+    if (xmlDoc.querySelector("parsererror")) {
+      throw new Error("Invalid XML file.");
+    }
 
-        // Parse XML with built-in DOMParser
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(text, "application/xml");
+    function parseProperty(propEl) {
+      const type = propEl.tagName;
+      const textContent = propEl.textContent.trim();
 
-        // Check for parse errors
-        if (xmlDoc.querySelector("parsererror")) {
-          throw new Error("Invalid XML file.");
+      switch (type) {
+        case "bool":
+          return textContent === "true" ? "true" : "false";
+        case "int":
+        case "float":
+          return textContent;
+        case "string":
+          return `"${textContent.replace(/"/g, '\\"')}"`;
+        case "Vector2": {
+          const x = propEl.querySelector("X")?.textContent || "0";
+          const y = propEl.querySelector("Y")?.textContent || "0";
+          return `Vector2.new(${x}, ${y})`;
         }
-
-        // Helper to get attribute
-        function getAttr(el, name) {
-          return el.getAttribute(name);
+        case "Vector3": {
+          const x = propEl.querySelector("X")?.textContent || "0";
+          const y = propEl.querySelector("Y")?.textContent || "0";
+          const z = propEl.querySelector("Z")?.textContent || "0";
+          return `Vector3.new(${x}, ${y}, ${z})`;
         }
-
-        // Converts property XML element to Lua value string
-        function parseProperty(propEl) {
-          const type = propEl.tagName;
-          const textContent = propEl.textContent;
-
-          switch (type) {
-            case "bool":
-              return textContent === "true" ? "true" : "false";
-            case "int":
-            case "float":
-              return textContent;
-            case "string":
-            case "Content":
-            case "ProtectedString":
-              return `"${textContent.replace(/"/g, '\\"')}"`;
-            case "Vector2": {
-              const x = propEl.querySelector("X")?.textContent || "0";
-              const y = propEl.querySelector("Y")?.textContent || "0";
-              return `Vector2.new(${x}, ${y})`;
-            }
-            case "Vector3": {
-              const x = propEl.querySelector("X")?.textContent || "0";
-              const y = propEl.querySelector("Y")?.textContent || "0";
-              const z = propEl.querySelector("Z")?.textContent || "0";
-              return `Vector3.new(${x}, ${y}, ${z})`;
-            }
-            case "UDim2": {
-              const X = propEl.querySelector("X");
-              const Y = propEl.querySelector("Y");
-              return `UDim2.new(${X.querySelector("Scale")?.textContent || 0}, ${X.querySelector("Offset")?.textContent || 0}, ${Y.querySelector("Scale")?.textContent || 0}, ${Y.querySelector("Offset")?.textContent || 0})`;
-            }
-            case "CFrame": {
-              // Read all 12 values (X,Y,Z,R00,R01,R02,R10,R11,R12,R20,R21,R22)
-              const keys = ["X", "Y", "Z", "R00", "R01", "R02", "R10", "R11", "R12", "R20", "R21", "R22"];
-              const vals = keys.map(k => propEl.querySelector(k)?.textContent || "0");
-              return `CFrame.new(${vals.join(", ")})`;
-            }
-            case "BrickColor": {
-              // The value is the brick color number (1-1032)
-              return `BrickColor.new(${textContent})`;
-            }
-            default:
-              // fallback, stringify XML text content
-              return `"${textContent.replace(/"/g, '\\"')}"`;
-          }
+        case "UDim2": {
+          const X = propEl.querySelector("X");
+          const Y = propEl.querySelector("Y");
+          return `UDim2.new(${X.querySelector("Scale")?.textContent || 0}, ${X.querySelector("Offset")?.textContent || 0}, ${Y.querySelector("Scale")?.textContent || 0}, ${Y.querySelector("Offset")?.textContent || 0})`;
         }
-
-        let id = 0;
-        function getUniqueName(base) {
-          return `${base}_${id++}`;
+        case "CFrame": {
+          const keys = ["X", "Y", "Z", "R00", "R01", "R02", "R10", "R11", "R12", "R20", "R21", "R22"];
+          const vals = keys.map(k => propEl.querySelector(k)?.textContent || "0");
+          return `CFrame.new(${vals.join(", ")})`;
         }
-
-        // Convert <Item> element to Lua code recursively
-        function convertInstanceToLua(itemEl, indent = "") {
-          const className = getAttr(itemEl, "class");
-          if (!className) return "";
-
-          const varName = getUniqueName(className.toLowerCase());
-          let lua = `${indent}local ${varName} = Instance.new("${className}")\n`;
-
-          // Properties node inside item
-          const propertiesEl = itemEl.querySelector(":scope > Properties");
-          if (propertiesEl) {
-            for (const propEl of propertiesEl.children) {
-              if (propEl.tagName === "Name") continue; // skip Name property
-
-              const value = parseProperty(propEl);
-              if (value !== undefined) {
-                lua += `${indent}${varName}.${propEl.tagName} = ${value}\n`;
-              }
-            }
-          }
-
-          // Process child Items recursively
-          const childrenEls = Array.from(itemEl.querySelectorAll(":scope > Item"));
-          for (const child of childrenEls) {
-            lua += convertInstanceToLua(child, indent);
-            const childVarName = `${getAttr(child, "class").toLowerCase()}_${id - 1}`;
-            lua += `${indent}${childVarName}.Parent = ${varName}\n`;
-          }
-
-          return lua;
+        case "BrickColor": {
+          return `BrickColor.new(${textContent})`;
         }
-
-        // Find the root <Item> inside <roblox>
-        const rootItem = xmlDoc.querySelector("roblox > Item");
-        if (!rootItem) throw new Error("No root Item found in .rbxmx file.");
-
-        const luaCode = convertInstanceToLua(rootItem);
-        codeEl.value = luaCode;
-      } catch (e) {
-        consoleEl.textContent = "Error: " + e.message;
-        console.error(e);
+        default:
+          return `"${textContent.replace(/"/g, '\\"')}"`;
       }
-    });
-  </script>
+    }
+
+    let id = 0;
+    function getUniqueName(base) {
+      return `${base}_${id++}`;
+    }
+
+    function convertInstanceToLua(itemEl, indent = "") {
+      const className = itemEl.getAttribute("class");
+      if (!className) return "";
+
+      const varName = getUniqueName(className.toLowerCase());
+      let lua = `${indent}local ${varName} = Instance.new("${className}")\n`;
+
+      const propertiesEl = itemEl.querySelector(":scope > Properties");
+
+      const skipProps = new Set(["BinaryString", "PhysicalProperties", "Content", "ProtectedString"]);
+
+      if (propertiesEl) {
+        for (const propEl of propertiesEl.children) {
+          if (propEl.tagName === "Name") continue;
+
+          const propName = propEl.getAttribute("name");
+          if (!propName) continue;
+
+          if (skipProps.has(propName)) {
+            lua += `${indent}-- Skipped property ${propName} (complex data)\n`;
+            continue;
+          }
+
+          const value = parseProperty(propEl);
+          if (value !== undefined) {
+            lua += `${indent}${varName}.${propName} = ${value}\n`;
+          }
+        }
+      }
+
+      const childrenEls = Array.from(itemEl.querySelectorAll(":scope > Item"));
+      for (const child of childrenEls) {
+        lua += convertInstanceToLua(child, indent);
+        const childVarName = `${child.getAttribute("class").toLowerCase()}_${id - 1}`;
+        lua += `${indent}${childVarName}.Parent = ${varName}\n`;
+      }
+
+      return lua;
+    }
+
+    const rootItem = xmlDoc.querySelector("roblox > Item");
+    if (!rootItem) throw new Error("No root Item found.");
+
+    const luaCode = convertInstanceToLua(rootItem);
+    codeEl.value = luaCode;
+  } catch (e) {
+    consoleEl.textContent = "Error: " + e.message;
+    console.error(e);
+  }
+});
+</script>
+
 </body>
 </html>
