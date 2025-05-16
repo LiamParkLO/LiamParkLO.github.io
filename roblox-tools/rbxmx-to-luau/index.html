@@ -114,36 +114,36 @@
         switch (prop.tagName) {
           case "string":
           case "ProtectedString":
-            lines.push(`pcall(function()${varName}.${name}=${JSON.stringify(text)}end)`);
+            lines.push(`pcall(function() ${varName}.${name}=${JSON.stringify(text)} end)`);
             break;
           case "bool":
-            lines.push(`pcall(function()${varName}.${name}=${text==="true"}end)`);
+            lines.push(`pcall(function() ${varName}.${name}=${text==="true"} end)`);
             break;
           case "int":
           case "float":
           case "double":
-            lines.push(`pcall(function()${varName}.${name}=${Number(text)}end)`);
+            lines.push(`pcall(function() ${varName}.${name}=${Number(text)} end)`);
             break;
           case "Vector2":
             {
               const [x2, y2] = text.split(/\s+/).map(Number);
-              lines.push(`pcall(function()${varName}.${name}=v2(${x2},${y2})end)`);
+              lines.push(`pcall(function() ${varName}.${name}=v2(${x2},${y2}) end)`);
             }
             break;
           case "UDim2":
             {
               const [sx, ox, sy, oy] = text.split(/\s+/).map(Number);
-              lines.push(`pcall(function()${varName}.${name}=v3(${sx},${ox},${sy},${oy})end)`);
+              lines.push(`pcall(function() ${varName}.${name}=v3(${sx},${ox},${sy},${oy}) end)`);
             }
             break;
           case "BrickColor":
-            lines.push(`pcall(function()${varName}.${name}=v4(${Number(text)})end)`);
+            lines.push(`pcall(function() ${varName}.${name}=v4(${Number(text)}) end)`);
             break;
           case "CoordinateFrame":
             {
               const nums = text.split(/\s+/).map(Number).filter(n => !isNaN(n));
               if (nums.length >= 3) {
-                lines.push(`pcall(function()${varName}.${name}=v5(${nums.join(",")})end)`);
+                lines.push(`pcall(function() ${varName}.${name}=v5(${nums.join(",")}) end)`);
               }
             }
             break;
