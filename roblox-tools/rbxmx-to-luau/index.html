@@ -93,7 +93,17 @@ document.getElementById("convert").addEventListener("click", async () => {
 
       const propertiesEl = itemEl.querySelector(":scope > Properties");
 
-      const skipProps = new Set(["BinaryString", "PhysicalProperties", "Content", "ProtectedString"]);
+      // Add your extra ignored property names here:
+      const skipProps = new Set([
+        "BinaryString",
+        "PhysicalProperties",
+        "Content",
+        "ProtectedString",
+        "AttributesSerialize",
+        "Color3uint8",
+        "MaterialColors",
+        "PhysicsGrid"
+      ]);
 
       if (propertiesEl) {
         for (const propEl of propertiesEl.children) {
