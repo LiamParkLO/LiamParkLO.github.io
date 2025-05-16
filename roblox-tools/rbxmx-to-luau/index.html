@@ -1,22 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>RBXMX to LuaU Converter</title>
 </head>
 <body>
   <h1>RBXMX to LuaU Converter</h1>
 
-  <input type="file" id="file" accept=".rbxmx">
+  <input type="file" id="file" accept=".rbxmx" />
   <button id="convert">Convert</button>
-  <br><br>
+  <br /><br />
 
   <strong id="console" style="color: red;"></strong>
-  <br><br>
+  <br /><br />
 
-  <textarea id="code" rows="20" cols="80" placeholder="Converted LuaU code will appear here..."></textarea>
+  <textarea
+    id="code"
+    rows="20"
+    cols="80"
+    placeholder="Converted LuaU code will appear here..."
+  ></textarea>
 
-  <script src="https://cdn.jsdelivr.net/npm/fast-xml-parser@4.2.5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fast-xml-parser@4.2.5/dist/fast-xml-parser.min.js"></script>
   <script>
     document.getElementById("convert").addEventListener("click", async function () {
       const fileInput = document.getElementById("file");
@@ -29,7 +34,9 @@
         if (!file) throw new Error("No file selected.");
 
         const text = await file.text();
-        const parser = new window.XMLParser({ ignoreAttributes: false });
+
+        // Use fastXmlParser.XMLParser correctly:
+        const parser = new fastXmlParser.XMLParser({ ignoreAttributes: false });
         const json = parser.parse(text);
 
         let id = 0;
@@ -39,27 +46,36 @@
 
         function getPropertyValue(prop) {
           if (!prop) return undefined;
-          if (typeof prop === 'string') return `"${prop}"`;
+          if (typeof prop === "string") return `"${prop}"`;
 
           const [type, value] = Object.entries(prop)[0];
           switch (type) {
-            case 'string':
-            case 'Content':
-            case 'ProtectedString': return `"${value}"`;
-            case 'bool': return value === 'true' ? 'true' : 'false';
-            case 'int':
-            case 'float': return value;
-            case 'Vector2': return `Vector2.new(${value.X}, ${value.Y})`;
-            case 'Vector3': return `Vector3.new(${value.X}, ${value.Y}, ${value.Z})`;
-            case 'UDim2': return `UDim2.new(${value.X.Scale}, ${value.X.Offset}, ${value.Y.Scale}, ${value.Y.Offset})`;
-            case 'CFrame': return `CFrame.new(${value.X}, ${value.Y}, ${value.Z}, ${value.R00}, ${value.R01}, ${value.R02}, ${value.R10}, ${value.R11}, ${value.R12}, ${value.R20}, ${value.R21}, ${value.R22})`;
-            case 'BrickColor': return `BrickColor.new(${value})`;
-            default: return `"${JSON.stringify(value)}"`; // fallback
+            case "string":
+            case "Content":
+            case "ProtectedString":
+              return `"${value}"`;
+            case "bool":
+              return value === "true" ? "true" : "false";
+            case "int":
+            case "float":
+              return value;
+            case "Vector2":
+              return `Vector2.new(${value.X}, ${value.Y})`;
+            case "Vector3":
+              return `Vector3.new(${value.X}, ${value.Y}, ${value.Z})`;
+            case "UDim2":
+              return `UDim2.new(${value.X.Scale}, ${value.X.Offset}, ${value.Y.Scale}, ${value.Y.Offset})`;
+            case "CFrame":
+              return `CFrame.new(${value.X}, ${value.Y}, ${value.Z}, ${value.R00}, ${value.R01}, ${value.R02}, ${value.R10}, ${value.R11}, ${value.R12}, ${value.R20}, ${value.R21}, ${value.R22})`;
+            case "BrickColor":
+              return `BrickColor.new(${value})`;
+            default:
+              return `"${JSON.stringify(value)}"`; // fallback
           }
         }
 
-        function convertInstanceToLua(instance, indent = '') {
-          const className = instance['@_class'];
+        function convertInstanceToLua(instance, indent = "") {
+          const className = instance["@_class"];
           const properties = instance.Properties || {};
           const varName = getUniqueName(className.toLowerCase());
 
@@ -67,7 +83,7 @@
 
           for (const [propName, propValue] of Object.entries(properties)) {
             const value = getPropertyValue(propValue);
-            if (value !== undefined && propName !== 'Name') {
+            if (value !== undefined && propName !== "Name") {
               luaCode += `${indent}${varName}.${propName} = ${value}\n`;
             }
           }
@@ -76,7 +92,7 @@
             const children = Array.isArray(instance.Item) ? instance.Item : [instance.Item];
             for (const child of children) {
               luaCode += convertInstanceToLua(child, indent);
-              const childVar = `${child['@_class'].toLowerCase()}_${id - 1}`;
+              const childVar = `${child["@_class"].toLowerCase()}_${id - 1}`;
               luaCode += `${indent}${childVar}.Parent = ${varName}\n`;
             }
           }
