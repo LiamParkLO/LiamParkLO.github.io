@@ -8,20 +8,24 @@
   <h1>RBXMX to LuaU Converter</h1>
 
   <input type="file" id="file" accept=".rbxmx">
+  <button id="convert">Convert</button>
   <br><br>
+
   <strong id="console" style="color: red;"></strong>
   <br><br>
+
   <textarea id="code" rows="20" cols="80" placeholder="Converted LuaU code will appear here..."></textarea>
 
   <script src="https://cdn.jsdelivr.net/npm/fast-xml-parser@4.2.5"></script>
   <script>
-    document.getElementById("file").addEventListener("change", async function () {
+    document.getElementById("convert").addEventListener("click", async function () {
+      const fileInput = document.getElementById("file");
       const consoleEl = document.getElementById("console");
       const codeEl = document.getElementById("code");
       consoleEl.textContent = "";
 
       try {
-        const file = this.files[0];
+        const file = fileInput.files[0];
         if (!file) throw new Error("No file selected.");
 
         const text = await file.text();
@@ -91,4 +95,3 @@
   </script>
 </body>
 </html>
-              
