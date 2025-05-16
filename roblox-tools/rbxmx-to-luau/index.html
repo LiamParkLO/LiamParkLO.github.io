@@ -31,6 +31,11 @@
       "PathfindingService", "CollectionService", "MemoryStoreService", "MessagingService"
     ]);
 
+    let idCounter = 0;
+    function generateName() {
+      return `unnamed${++idCounter}`;
+    }
+
     document.getElementById("convert").addEventListener("click", () => {
       const fileInput = document.getElementById("file");
       const output = document.getElementById("code");
@@ -51,42 +56,49 @@
 
           if (!root) throw new Error("Invalid RBXMX file");
 
-          let result = 'local v1,v2,v3,v4,v5=Instance.new,Vector2.new,UDim2.new,BrickColor.new,CFrame.new\nlocal v6=pcall local t,f=true,false\n\n';
-          const varMap = new Map();
-          let id = 1;
+          let result = 'local v1,v2,v3,v4,v5=Instance.new,Vector2.new,UDim2.new,BrickColor.new,CFrame.new\nlocal v6=pcall\nlocal t,f=true,false\n\n';
 
-          function walk(item, parentVar) {
+          const mapping = new Map();
+
+          function walk(item, parentName = null) {
             const className = item.getAttribute("class");
-            const name = sanitizeName(item.getAttribute("name") || `unnamed${id++}`);
-            let code = "";
-            let varLine = "";
+            const tagName = sanitizeName(item.getAttribute("name") || generateName());
 
+            if (mapping.has(item)) return;
+            mapping.set(item, tagName);
+
+            let line = "";
             if (className === "Terrain") {
-              varLine = `local ${name} = workspace.Terrain\n`;
+              line += `local ${tagName}=workspace.Terrain\n`;
             } else if (nonCreatable.has(className)) {
-              varLine = `local ${name} = game:GetService("${className}")\n`;
+              line += `local ${tagName}=game:GetService(\"${className}\")\n`;
             } else {
-              varLine = `local ${name} = v1("${className}")\n`;
+              line += `local ${tagName}=v1(\"${className}\")\n`;
             }
 
-            code += varLine;
-            code += parseProps(item.querySelector("Properties"), name);
+            const props = Array.from(item.querySelector("Properties")?.children || []);
+            const lines = parseProps(props, tagName);
+            for (const propLine of lines) line += `${propLine}\n`;
 
-            item.querySelectorAll(":scope > Item").forEach(child => {
-              code += walk(child, name);
-            });
-
-            if (parentVar) {
-              code += `v6(function() ${name}.Parent = ${parentVar} end)\n`;
+            if (parentName) {
+              line += `v6(function() ${tagName}.Parent=${parentName} end)\n`;
             }
 
-            return code;
+            const children = item.querySelectorAll(":scope > Item");
+            for (const child of children) {
+              line += walk(child, tagName);
+            }
+
+            return line;
           }
 
-          result += Array.from(root.children).filter(n => n.tagName === "Item").map(i => walk(i)).join("");
+          let fullCode = "";
+          root.querySelectorAll(":scope > Item").forEach(item => {
+            fullCode += walk(item);
+          });
 
+          output.value = result + fullCode.trim();
           consoleOut.textContent = "";
-          output.value = result.trim();
         } catch (err) {
           consoleOut.textContent = "Error: " + err.message;
           output.value = "";
@@ -105,11 +117,8 @@
       return name.replace(/[^a-zA-Z0-9_]/g, "_");
     }
 
-    function parseProps(propsNode, varName) {
-      if (!propsNode) return "";
-      const props = Array.from(propsNode.children);
-      let lines = "";
-
+    function parseProps(props, varName) {
+      const lines = [];
       for (const prop of props) {
         const name = prop.getAttribute("name");
         if (skipProps.includes(name)) continue;
@@ -118,44 +127,45 @@
         switch (prop.tagName) {
           case "string":
           case "ProtectedString":
-            lines += `v6(function() ${varName}.${name} = ${JSON.stringify(text)} end)\n`;
+            lines.push(`v6(function() ${varName}.${name}=${JSON.stringify(text)} end)`);
             break;
           case "bool":
-            lines += `v6(function() ${varName}.${name} = ${text === "true" ? "t" : "f"} end)\n`;
+            lines.push(`v6(function() ${varName}.${name}=${text === "true" ? "t" : "f"} end)`);
             break;
           case "int":
           case "float":
           case "double":
-            lines += `v6(function() ${varName}.${name} = ${Number(text)} end)\n`;
+            lines.push(`v6(function() ${varName}.${name}=${Number(text)} end)`);
             break;
           case "Vector2": {
-            const [x, y] = text.split(/\s+/).map(Number);
-            lines += `v6(function() ${varName}.${name} = v2(${x}, ${y}) end)\n`;
+            const [x2, y2] = text.split(/\s+/).map(Number);
+            lines.push(`v6(function() ${varName}.${name}=v2(${x2},${y2}) end)`);
             break;
           }
           case "UDim2": {
             const [sx, ox, sy, oy] = text.split(/\s+/).map(Number);
-            lines += `v6(function() ${varName}.${name} = v3(${sx}, ${ox}, ${sy}, ${oy}) end)\n`;
+            lines.push(`v6(function() ${varName}.${name}=v3(${sx},${ox},${sy},${oy}) end)`);
             break;
           }
           case "BrickColor":
-            lines += `v6(function() ${varName}.${name} = v4(${Number(text)}) end)\n`;
+            lines.push(`v6(function() ${varName}.${name}=v4(${Number(text)}) end)`);
             break;
           case "CoordinateFrame": {
             const nums = text.split(/\s+/).map(Number).filter(n => !isNaN(n));
             if (nums.length >= 3) {
-              lines += `v6(function() ${varName}.${name} = v5(${nums.join(", ")}) end)\n`;
+              lines.push(`v6(function() ${varName}.${name}=v5(${nums.join(",")}) end)`);
             }
             break;
           }
           case "token":
-            lines += `v6(function() ${varName}.${name} = ${JSON.stringify(text)} end)\n`;
+            lines.push(`v6(function() ${varName}.${name}=${JSON.stringify(text)} end)`);
             break;
           case "BinaryString":
-            break; // Skip BinaryString
+            break;
+          default:
+            break;
         }
       }
-
       return lines;
     }
   </script>
