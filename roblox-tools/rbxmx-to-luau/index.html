@@ -1,118 +1,164 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
   <title>RBXMX to LuaU Converter</title>
+  <style>
+    body { font-family: sans-serif; padding: 1em; }
+    textarea { width: 100%; height: 300px; margin-top: 1em; }
+    #console { color: red; margin-top: 1em; font-weight: bold; display: block; }
+  </style>
 </head>
 <body>
+  <h1>RBXMX to LuaU Converter</h1>
   <input type="file" id="file">
   <button id="convert">Convert</button>
   <strong id="console"></strong>
-  <textarea id="code" rows="20" cols="80"></textarea>
+  <textarea id="code" readonly></textarea>
 
   <script>
-    const skipProps = new Set([
-      "AttributesSerialize",
-      "Color3uint8",
-      "MaterialColors",
-      "PhysicsGrid",
-      "BinaryString",
-      "token",
-      "int",
-      "float",
-      "bool",
-      "string",
-      "ProtectedString",
-      "Content",
-      "CoordinateFrame",
-      "PhysicalProperties"
+    const skipProps = [
+      "AttributesSerialize", "Color3uint8", "MaterialColors",
+      "PhysicsGrid", "Tags", "Version", "LinkedSource", "ScriptGuid"
+    ];
+
+    const nonCreatable = new Set([
+      "Workspace", "Players", "Lighting", "ReplicatedFirst", "ReplicatedStorage",
+      "ServerScriptService", "ServerStorage", "StarterGui", "StarterPack",
+      "StarterPlayer", "Teams", "SoundService", "Chat", "LocalizationService",
+      "TestService", "RunService", "HttpService", "TweenService", "Terrain",
+      "TextService", "LogService", "InsertService", "ContentProvider",
+      "PathfindingService", "CollectionService", "MemoryStoreService", "MessagingService"
     ]);
 
-    function parseUDim2(text) {
-      const nums = text.trim().split(/\s+/).map(Number);
-      return `UDim2.new(${nums[0]}, ${nums[1]}, ${nums[2]}, ${nums[3]})`;
-    }
+    document.getElementById("convert").addEventListener("click", () => {
+      const fileInput = document.getElementById("file");
+      const output = document.getElementById("code");
+      const consoleOut = document.getElementById("console");
+      const file = fileInput.files[0];
 
-    function parseVector2(text) {
-      const nums = text.trim().split(/\s+/).map(Number);
-      return `Vector2.new(${nums[0]}, ${nums[1]})`;
-    }
-
-    function parseCFrame(text) {
-      const nums = text.trim().split(/\s+/).map(Number);
-      return `CFrame.new(${nums.join(", ")})`;
-    }
-
-    function escape(str) {
-      return str.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-    }
-
-    function parseProps(props) {
-      const entries = [];
-      for (const prop of props) {
-        const name = prop.getAttribute("name");
-        if (skipProps.has(name)) continue;
-        const tag = prop.tagName;
-        const value = prop.textContent.trim();
-        if (tag === "string" || tag === "ProtectedString" || tag === "Content") {
-          entries.push(`${name} = "${escape(value)}"`);
-        } else if (tag === "bool") {
-          entries.push(`${name} = ${value === "true"}`);
-        } else if (tag === "int" || tag === "float" || tag === "double") {
-          entries.push(`${name} = ${parseFloat(value)}`);
-        } else if (tag === "UDim2") {
-          entries.push(`${name} = ${parseUDim2(value)}`);
-        } else if (tag === "Vector2") {
-          entries.push(`${name} = ${parseVector2(value)}`);
-        } else if (tag === "CFrame") {
-          entries.push(`${name} = ${parseCFrame(value)}`);
-        } else if (tag === "BrickColor") {
-          entries.push(`${name} = BrickColor.new(${value})`);
-        }
+      if (!file) {
+        consoleOut.textContent = "No file selected.";
+        return;
       }
-      return entries;
-    }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parser = new DOMParser();
+          const xml = parser.parseFromString(reader.result, "text/xml");
+          const root = xml.querySelector("roblox");
+
+          if (!root) throw new Error("Invalid RBXMX file");
+
+          let result = "";
+          root.querySelectorAll(":scope > Item").forEach(item => {
+            result += walk(item);
+          });
+
+          consoleOut.textContent = "";
+          output.value = result.trim();
+        } catch (err) {
+          consoleOut.textContent = "Error: " + err.message;
+          output.value = "";
+        }
+      };
+
+      reader.onerror = () => {
+        consoleOut.textContent = "Error reading file.";
+        output.value = "";
+      };
+
+      reader.readAsText(file);
+    });
 
     function walk(item, indent = "") {
       const className = item.getAttribute("class");
-      const name = item.getAttribute("name") || "unnamed";
-      let code = `${indent}local ${name} = Instance.new("${className}")\n`;
-      const props = Array.from(item.getElementsByTagName("Properties")[0]?.children || []);
+      const name = sanitizeName(item.getAttribute("name") || "unnamed");
+      let code = "";
+
+      if (className === "Terrain") {
+        code += `${indent}local ${name} = workspace.Terrain\n`;
+      } else if (nonCreatable.has(className)) {
+        code += `${indent}local ${name} = game:GetService("${className}")\n`;
+      } else {
+        code += `${indent}local ${name} = Instance.new("${className}")\n`;
+      }
+
+      const props = Array.from(item.querySelector("Properties")?.children || []);
       const lines = parseProps(props);
       for (const line of lines) code += `${indent}${name}.${line}\n`;
 
-      for (const child of item.children) {
-        if (child.tagName === "Item") {
-          code += walk(child, indent);
-          const childName = child.getAttribute("name") || "unnamed";
-          code += `${indent}${childName}.Parent = ${name}\n`;
-        }
+      const children = item.querySelectorAll(":scope > Item");
+      for (const child of children) {
+        code += walk(child, indent);
+        const childName = sanitizeName(child.getAttribute("name") || "unnamed");
+        code += `${indent}${childName}.Parent = ${name}\n`;
       }
 
       return code;
     }
 
-    document.getElementById("convert").addEventListener("click", () => {
-      const fileInput = document.getElementById("file");
-      const consoleEl = document.getElementById("console");
-      const codeEl = document.getElementById("code");
-      if (!fileInput.files[0]) {
-        consoleEl.textContent = "No file selected.";
-        return;
-      }
+    function sanitizeName(name) {
+      // Replace spaces and illegal Lua variable characters with _
+      return name.replace(/[^a-zA-Z0-9_]/g, "_");
+    }
 
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(e.target.result, "application/xml");
-        const rootItems = xml.querySelectorAll("Item");
-        let luaCode = "";
-        rootItems.forEach(item => luaCode += walk(item));
-        codeEl.value = luaCode;
-        consoleEl.textContent = "Success!";
-      };
-      reader.readAsText(fileInput.files[0]);
-    });
+    function parseProps(props) {
+      const lines = [];
+      for (const prop of props) {
+        const name = prop.getAttribute("name");
+        if (skipProps.includes(name)) continue;
+
+        const text = prop.textContent.trim();
+        switch (prop.tagName) {
+          case "string":
+          case "ProtectedString":
+            lines.push(`${name} = ${JSON.stringify(text)}`);
+            break;
+          case "bool":
+            lines.push(`${name} = ${text === "true"}`);
+            break;
+          case "int":
+          case "float":
+          case "double":
+            lines.push(`${name} = ${Number(text)}`);
+            break;
+          case "Vector2":
+            {
+              const [x2, y2] = text.split(/\s+/).map(Number);
+              lines.push(`${name} = Vector2.new(${x2}, ${y2})`);
+            }
+            break;
+          case "UDim2":
+            {
+              const [sx, ox, sy, oy] = text.split(/\s+/).map(Number);
+              lines.push(`${name} = UDim2.new(${sx}, ${ox}, ${sy}, ${oy})`);
+            }
+            break;
+          case "BrickColor":
+            lines.push(`${name} = BrickColor.new(${Number(text)})`);
+            break;
+          case "CoordinateFrame":
+            {
+              const nums = text.split(/\s+/).map(Number).filter(n => !isNaN(n));
+              if (nums.length >= 3) {
+                lines.push(`${name} = CFrame.new(${nums.join(", ")})`);
+              }
+            }
+            break;
+          case "token":
+            lines.push(`${name} = ${JSON.stringify(text)}`);
+            break;
+          case "BinaryString":
+            lines.push(`${name} = "${text.replace(/[\r\n]+/g, "")}"`);
+            break;
+          default:
+            // Unknown or unsupported type: skip
+            break;
+        }
+      }
+      return lines;
+    }
   </script>
 </body>
 </html>
