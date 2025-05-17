@@ -76,28 +76,30 @@
 
     function walk(item, indent = "") {
       const className = item.getAttribute("class");
-      const name = sanitizeName(item.getAttribute("name") || "unnamed");
+      const baseName = sanitizeName(item.getAttribute("name") || "unnamed");
+      const varName = baseName + varcount++;
       let code = "";
 
       if (className === "Terrain") {
-        code += `${indent}local ${name+varcount}=workspace.Terrain\n`;
+        code += `${indent}local ${varName}=workspace.Terrain\n`;
       } else if (nonCreatable.has(className)) {
-        code += `${indent}local ${name+varcount}=game:GetService(\"${className}\")\n`;
+        code += `${indent}local ${varName}=game:GetService("${className}")\n`;
       } else {
-        code += `${indent}local ${name+varcount}=v1(\"${className}\")\n`;
+        code += `${indent}local ${varName}=v1("${className}")\n`;
       }
+
       const props = Array.from(item.querySelector("Properties")?.children || []);
-      varcount++
-
-
-      const lines = parseProps(props, name);
+      const lines = parseProps(props, varName);
       for (const line of lines) code += `${indent}${line}\n`;
-
+    
       const children = item.querySelectorAll(":scope > Item");
       for (const child of children) {
-        code += walk(child, indent);
-        const childName = sanitizeName(child.getAttribute("name") || "unnamed");
-        code += `${indent}v6(function() ${childName}.Parent=${name} end)\n`;
+        const childCode = walk(child, indent);
+        code += childCode;
+
+        const childBase = sanitizeName(child.getAttribute("name") || "unnamed");
+        const childVarName = childBase + (varcount - 1); // Match the latest assigned number
+        code += `${indent}v6(function() ${childVarName}.Parent=${varName} end)\n`;
       }
 
       return code;
