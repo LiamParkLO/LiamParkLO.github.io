@@ -16,6 +16,8 @@
   <textarea id="code" readonly></textarea>
 
   <script>
+    const nameMap = new Map();
+
     const skipProps = [
       "AttributesSerialize", "Color3uint8", "MaterialColors",
       "PhysicsGrid", "Tags", "Version", "LinkedSource", "ScriptGuid",
@@ -78,6 +80,8 @@
       const className = item.getAttribute("class");
       const baseName = sanitizeName(item.getAttribute("name") || "unnamed");
       const varName = baseName + varcount++;
+      nameMap.set(item, varName); // store the variable name for this item
+
       let code = "";
 
       if (className === "Terrain") {
@@ -91,19 +95,17 @@
       const props = Array.from(item.querySelector("Properties")?.children || []);
       const lines = parseProps(props, varName);
       for (const line of lines) code += `${indent}${line}\n`;
-    
+
       const children = item.querySelectorAll(":scope > Item");
       for (const child of children) {
-        const childCode = walk(child, indent);
-        code += childCode;
-
-        const childBase = sanitizeName(child.getAttribute("name") || "unnamed");
-        const childVarName = childBase + (varcount - 1); // Match the latest assigned number
+        code += walk(child, indent);
+        const childVarName = nameMap.get(child); // get stored var name
         code += `${indent}v6(function() ${childVarName}.Parent=${varName} end)\n`;
       }
 
       return code;
     }
+
 
     function sanitizeName(name) {
       return name.replace(/[^a-zA-Z0-9_]/g, "_");
