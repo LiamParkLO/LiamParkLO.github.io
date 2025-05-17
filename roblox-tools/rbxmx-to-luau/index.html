@@ -30,7 +30,7 @@
       "TextService", "LogService", "InsertService", "ContentProvider",
       "PathfindingService", "CollectionService", "MemoryStoreService", "MessagingService"
     ]);
-
+    let varcount = 1
     document.getElementById("convert").addEventListener("click", () => {
       const fileInput = document.getElementById("file");
       const output = document.getElementById("code");
@@ -80,14 +80,16 @@
       let code = "";
 
       if (className === "Terrain") {
-        code += `${indent}local ${name}=workspace.Terrain\n`;
+        code += `${indent}local ${name+varcount}=workspace.Terrain\n`;
       } else if (nonCreatable.has(className)) {
-        code += `${indent}local ${name}=game:GetService(\"${className}\")\n`;
+        code += `${indent}local ${name+varcount}=game:GetService(\"${className}\")\n`;
       } else {
-        code += `${indent}local ${name}=v1(\"${className}\")\n`;
+        code += `${indent}local ${name+varcount}=v1(\"${className}\")\n`;
       }
-
       const props = Array.from(item.querySelector("Properties")?.children || []);
+      varcount++
+
+
       const lines = parseProps(props, name);
       for (const line of lines) code += `${indent}${line}\n`;
 
