@@ -124,7 +124,7 @@
           case "float":
           case "double":
           case "token": 
-            lines.push(`v6(function() ${varName}.${name}=v7(${varName}, ${name}, ${Number(text)}) end)`);
+            lines.push(`v6(function() ${varName}.${name}=v7(${varName}, ${name}, ${Number(text)}+1) end)`);
             break;
           case "Vector2": {
             const [x2, y2] = text.split(/\s+/).map(Number);
